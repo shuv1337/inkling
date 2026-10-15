@@ -1,5 +1,5 @@
+import { APP_UA, llmSettings, modelsUrl } from "@/lib/llm";
 import { peekFree } from "@/lib/quota";
-import { APP_UA } from "@/lib/together";
 
 export const runtime = "nodejs";
 
@@ -11,12 +11,14 @@ export async function POST(req: Request) {
   } catch {}
   const key = body.apiKey?.trim();
   if (!key) return Response.json({ ok: false });
+  if (process.env.LLM_SKIP_KEY_CHECK === "1") return Response.json({ ok: true });
   try {
-    const res = await fetch("https://api.together.xyz/v1/models", {
+    const res = await fetch(modelsUrl(), {
       headers: { Authorization: `Bearer ${key}`, "User-Agent": APP_UA },
       signal: AbortSignal.timeout(10_000),
     });
-    return Response.json({ ok: res.ok });
+    // A provider with no model listing (some local servers) does not mean the key is bad.
+    return Response.json({ ok: res.ok || res.status === 404 });
   } catch {
     return Response.json({ ok: false });
   }
@@ -24,6 +26,6 @@ export async function POST(req: Request) {
 
 /** Whether there is a shared key, and how much of today's free allowance is left on it. */
 export async function GET(req: Request) {
-  const house = Boolean(process.env.TOGETHER_API_KEY);
+  const house = Boolean(llmSettings().apiKey);
   return Response.json({ house, free: house ? await peekFree(req) : null });
 }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { APP_UA, modelsUrl } from "@/lib/llm";
 import { parseCarefully, type Tier } from "@/lib/llamaparse";
-import { APP_UA } from "@/lib/together";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -26,7 +26,7 @@ async function togetherKeyWorks(key: string): Promise<boolean> {
   const id = hash(key);
   if ((goodKeys.get(id) ?? 0) > Date.now()) return true;
   try {
-    const res = await fetch("https://api.together.xyz/v1/models", { headers: { Authorization: `Bearer ${key}`, "User-Agent": APP_UA }, signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(modelsUrl(), { headers: { Authorization: `Bearer ${key}`, "User-Agent": APP_UA }, signal: AbortSignal.timeout(10_000) });
     if (res.ok) goodKeys.set(id, Date.now() + 3_600_000);
     return res.ok;
   } catch {
@@ -62,7 +62,7 @@ async function record(subject: string, pages: number, usd: number) {
 
 export async function POST(req: Request) {
   const key = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (!key) return Response.json({ error: "Reading carefully needs your Together key. Add it from the key button.", code: "need_key" }, { status: 401 });
+  if (!key) return Response.json({ error: "Reading carefully needs your API key. Add it from the key button.", code: "need_key" }, { status: 401 });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BYTES + 10_000) return tooLarge();
 
   let file: File | null = null;
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   if (!file) return Response.json({ error: "Send the PDF as a file." }, { status: 400 });
   if (file.size > MAX_BYTES) return tooLarge();
 
-  if (!(await togetherKeyWorks(key))) return Response.json({ error: "Together did not accept your key. Check it in the key menu.", code: "need_key" }, { status: 401 });
+  if (!(await togetherKeyWorks(key))) return Response.json({ error: "The model provider did not accept your key. Check it in the key menu.", code: "need_key" }, { status: 401 });
 
   const subject = `careful:${hash(key)}`;
   const used = await pagesToday(subject);

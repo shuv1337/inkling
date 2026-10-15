@@ -70,6 +70,8 @@ export async function checkFreeUser(userId: string, burst = 60): Promise<FreeSta
 }
 
 async function check(w: { subject: string; limit: number; signedIn: boolean }, burst: number): Promise<FreeState> {
+  // One reader on their own server is not on the shared-key budget.
+  if (process.env.AUTH_MODE === "single") return { ok: true, left: 1, signedIn: true, subject: "free:single" };
   // A burst guard, so a script cannot fire many requests before their costs land.
   if (!allow(`burst:${w.subject}`, burst, 60_000)) return { ok: false, left: 1, signedIn: w.signedIn, subject: w.subject, reason: "burst" };
   const s = await spent(w.subject);
@@ -100,6 +102,7 @@ export async function chargeFree(subject: string, usd: number) {
 
 /** Today's allowance without using any of it, for the key menu. */
 export async function peekFree(req: Request): Promise<{ left: number; signedIn: boolean }> {
+  if (process.env.AUTH_MODE === "single") return { left: 1, signedIn: true };
   const w = await who(req);
   const s = await spent(w.subject);
   return { left: s.all >= FREE_USD_ALL ? 0 : Math.max(0, 1 - s.mine / w.limit), signedIn: w.signedIn };
@@ -111,11 +114,11 @@ export function needKey(state: FreeState | null, message?: string): Response {
   const error =
     message ??
     (!state
-      ? "Add your Together API key to start. It stays in this browser."
+      ? "Add your API key to start. It stays in this browser."
       : state.reason === "everyone"
-        ? "Free answers are resting for today. Add your Together API key to keep going."
+        ? "Free answers are resting for today. Add your API key to keep going."
         : state.signedIn
-          ? "That's today's free reading. Add your Together API key to keep going, or come back tomorrow."
-          : "That's today's free reading. Sign in for more, or add your Together API key to keep going.");
+          ? "That's today's free reading. Add your API key to keep going, or come back tomorrow."
+          : "That's today's free reading. Sign in for more, or add your API key to keep going.");
   return Response.json({ error, code: "need_key", signIn: Boolean(state && !state.signedIn && state.reason === "reader") }, { status: state ? 429 : 401, headers: { "X-Free-Left": "0" } });
 }

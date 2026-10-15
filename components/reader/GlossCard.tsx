@@ -52,7 +52,7 @@ function KeyButton() {
         onClick={openKeyMenu}
         className="inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-bg transition-transform active:scale-[0.97]"
       >
-        Add your Together key
+        Add your API key
       </button>
       <Show when="signed-out">
         <SignInButton mode="modal">

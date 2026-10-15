@@ -1,24 +1,23 @@
+import { APP_UA, chatExtras, visionSettings } from "@/lib/llm";
 import { chargeFree, checkFree, needKey } from "@/lib/quota";
-import { APP_UA, TOGETHER_URL } from "@/lib/together";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 /**
  * One PDF page the text layer cannot give us (a scan, an image of text, garbled
- * glyphs), read by a vision model into Markdown. Qwen3.8 Flash is the vision
- * model Together serves per request; the dedicated OCR models (GLM-OCR,
+ * glyphs), read by a vision model into Markdown. On Together that is Qwen3.8
+ * Flash (VISION_MODEL overrides it). The dedicated OCR models (GLM-OCR,
  * DeepSeek-OCR-2) need their own endpoint. Checked 2026-10-10.
  */
-const MODEL = "Qwen/Qwen3.8-Flash";
 const PRICE = { inPerM: 0.15, outPerM: 0.47 };
 /**
  * mode "layout": a page whose text layer reads but whose layout came out
  * badly (columns, tables, maths), read again in the background
  * (lib/upgrade.ts). Qwen3.5-9B scored 6.9/10 on such pages in
  * scripts/pdf-eval against 3.9 for the text layer, at about $0.0005 a page.
+ * VISION_LAYOUT_MODEL overrides it.
  */
-const LAYOUT_MODEL = "Qwen/Qwen3.5-9B";
 const LAYOUT_PRICE = { inPerM: 0.17, outPerM: 0.25 };
 const MAX_IMAGE_CHARS = 3_500_000;
 
@@ -57,33 +56,38 @@ export async function POST(req: Request) {
   if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) return Response.json({ error: "Send the page as an image." }, { status: 400 });
   if (image.length > MAX_IMAGE_CHARS) return Response.json({ error: "That page image is too large." }, { status: 413 });
 
+  const vision = visionSettings();
+  if (!vision.enabled) return Response.json({ error: vision.reason }, { status: 501 });
+
   const headerKey = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
   const own = body.apiKey?.trim() || headerKey || undefined;
   let free: Awaited<ReturnType<typeof checkFree>> | null = null;
   if (!own) {
-    if (!process.env.TOGETHER_API_KEY) return needKey(null);
+    if (!vision.apiKey) return needKey(null);
     free = await checkFree(req, 90);
     if (!free.ok) return needKey(free);
   }
 
   const layout = body.mode === "layout";
-  const model = layout ? LAYOUT_MODEL : MODEL;
+  const model = layout ? vision.layoutModel : vision.model;
   const price = layout ? LAYOUT_PRICE : PRICE;
+  const extras = chatExtras(process.env, false);
+  if (!extras.ok) return Response.json({ error: extras.error }, { status: 500 });
 
   let res: Response;
   try {
-    res = await fetch(TOGETHER_URL, {
+    res = await fetch(`${vision.baseUrl}/chat/completions`, {
       method: "POST",
       signal: req.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${own ?? process.env.TOGETHER_API_KEY}`, "User-Agent": APP_UA },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${own ?? vision.apiKey}`, "User-Agent": APP_UA },
       body: JSON.stringify({
         model,
-        stream: true, // Qwen3.8 Flash only answers as a stream
+        stream: true, // Qwen3.8 Flash only answers as a stream; other providers accept it too
         stream_options: { include_usage: true },
         temperature: 0,
         max_tokens: 4096,
-        chat_template_kwargs: { enable_thinking: false },
         messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: image } }, { type: "text", text: layout ? LAYOUT_PROMPT : PROMPT }] }],
+        ...extras.body,
       }),
     });
   } catch {

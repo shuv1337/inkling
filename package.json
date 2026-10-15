@@ -9,7 +9,8 @@
     "lint": "tsc --noEmit",
     "db:up": "docker compose --env-file .env.local -f deploy/docker-compose.yml up -d",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "db:roundtrip": "node --env-file-if-exists=.env.local --import tsx scripts/sync-roundtrip.ts"
+    "db:roundtrip": "node --env-file-if-exists=.env.local --import tsx scripts/sync-roundtrip.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.13",

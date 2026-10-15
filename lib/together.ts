@@ -1,19 +1,20 @@
 /**
- * Together AI client. Server-side only. Raw fetch, OpenAI-compatible SSE.
+ * Chat completions. OpenAI-compatible SSE. The provider comes from env
+ * (lib/llm.ts); Together is the default.
  *
  * Things learned the hard way, kept on purpose:
  * 1. A named User-Agent. Together's WAF has 403'd the default undici agent.
  * 2. stream_options.include_usage, so the cost receipt is real, not a guess.
  * 3. Errors come back as JSON: surface error.message, not the raw body.
- * 4. enable_thinking:false keeps reasoners from spending the budget thinking.
+ * 4. enable_thinking:false keeps Together reasoners from spending the budget thinking.
  *    Verified per model on 2026-10-08 with the full sample article (11k tokens).
+ *    Other providers do not get that field unless LLM_EXTRA_BODY asks for it.
  */
 
-export const TOGETHER_URL = "https://api.together.xyz/v1/chat/completions";
-export const APP_UA = "Gloss/0.1";
+import { APP_UA, buildChatRequest, providerError } from "./llm";
+import { costOf, type ModelKey, type StreamEvent, type Usage } from "./models";
 
-import { MODELS, costFor, type ModelEntry, type ModelKey, type StreamEvent, type Usage } from "./models";
-
+export { APP_UA };
 export { MODELS, DEFAULT_MODEL, isModelKey, costFor } from "./models";
 export type { ModelKey, StreamEvent, Usage } from "./models";
 
@@ -32,19 +33,8 @@ type Chunk = {
   };
 };
 
-function errorMessage(status: number, body: string): string {
-  let msg = body.slice(0, 280);
-  try {
-    const j = JSON.parse(body) as { error?: { message?: string } | string; message?: string };
-    if (typeof j.error === "string") msg = j.error;
-    else if (j.error?.message) msg = j.error.message;
-    else if (j.message) msg = j.message;
-  } catch {
-    /* not JSON */
-  }
-  if (status === 401) return "Together rejected that API key. Check it and try again.";
-  if (status === 429) return "Together is rate limiting this key. Wait a moment, or use your own key.";
-  return `Together API ${status}: ${msg}`;
+function errorMessage(provider: string, status: number, body: string): string {
+  return providerError(provider, status, body);
 }
 
 export async function* streamChat(req: {
@@ -59,44 +49,41 @@ export async function* streamChat(req: {
   /** "none" sends the tools (a conversation that already used one needs them) but asks for an answer. */
   toolChoice?: "auto" | "none";
 }): AsyncGenerator<StreamEvent> {
-  const model: ModelEntry = MODELS[req.model];
-  const apiKey = req.apiKey?.trim() || process.env.TOGETHER_API_KEY;
-  if (!apiKey) {
-    yield { type: "error", text: "No Together API key. Set TOGETHER_API_KEY, or add your own key." };
+  const built = buildChatRequest({
+    model: req.model,
+    messages: req.messages,
+    apiKey: req.apiKey,
+    maxTokens: req.maxTokens ?? 900,
+    temperature: req.temperature ?? 0.4,
+    stream: true,
+    tools: req.tools,
+    toolChoice: req.toolChoice,
+    thinking: false,
+  });
+  if (!built.ok) {
+    yield { type: "error", text: built.error };
     return;
   }
+  const model = built.entry;
 
   yield { type: "meta", model: model.label };
 
   let res: Response;
   try {
-    res = await fetch(TOGETHER_URL, {
+    res = await fetch(built.url, {
       method: "POST",
       signal: req.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "User-Agent": APP_UA,
-      },
-      body: JSON.stringify({
-        model: model.id,
-        stream: true,
-        stream_options: { include_usage: true },
-        temperature: req.temperature ?? 0.4,
-        max_tokens: req.maxTokens ?? 900,
-        chat_template_kwargs: { enable_thinking: false },
-        messages: req.messages,
-        ...(req.tools ? { tools: req.tools, tool_choice: req.toolChoice ?? "auto" } : {}),
-      }),
+      headers: built.headers,
+      body: JSON.stringify(built.body),
     });
   } catch (e) {
     if (req.signal?.aborted) return;
-    yield { type: "error", text: `Could not reach Together: ${String(e)}` };
+    yield { type: "error", text: `Could not reach ${built.provider === "Together" ? "Together" : "the model provider"}: ${String(e)}` };
     return;
   }
 
   if (!res.ok || !res.body) {
-    yield { type: "error", text: errorMessage(res.status, await res.text().catch(() => "")) };
+    yield { type: "error", text: errorMessage(built.provider, res.status, await res.text().catch(() => "")) };
     return;
   }
 
@@ -152,7 +139,7 @@ export async function* streamChat(req: {
         const ct = chunk.usage.completion_tokens ?? 0;
         yield {
           type: "usage",
-          usage: { promptTokens: pt, cachedTokens: cached, completionTokens: ct, costUsd: costFor(req.model, pt, cached, ct) },
+          usage: { promptTokens: pt, cachedTokens: cached, completionTokens: ct, costUsd: costOf(model, pt, cached, ct) },
         };
       }
     }
@@ -170,30 +157,31 @@ export async function completeJSON<T>(req: {
   /** Let the model reason before it answers, for checking a text against itself. Its thinking spends from maxTokens. */
   thinking?: boolean;
 }): Promise<{ ok: true; data: T; usage: Usage } | { ok: false; error: string }> {
-  const model: ModelEntry = MODELS[req.model];
-  const apiKey = req.apiKey?.trim() || process.env.TOGETHER_API_KEY;
-  if (!apiKey) return { ok: false, error: "No Together API key. Set TOGETHER_API_KEY, or add your own key." };
+  const built = buildChatRequest({
+    model: req.model,
+    messages: req.messages,
+    apiKey: req.apiKey,
+    maxTokens: req.maxTokens ?? 1400,
+    temperature: 0.3,
+    thinking: Boolean(req.thinking),
+    responseFormat: { type: "json_object" },
+  });
+  if (!built.ok) return { ok: false, error: built.error };
+  const model = built.entry;
 
   let res: Response;
   try {
-    res = await fetch(TOGETHER_URL, {
+    res = await fetch(built.url, {
       method: "POST",
       signal: req.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "User-Agent": APP_UA },
-      body: JSON.stringify({
-        model: model.id,
-        temperature: 0.3,
-        max_tokens: req.maxTokens ?? 1400,
-        chat_template_kwargs: { enable_thinking: Boolean(req.thinking) },
-        response_format: { type: "json_object" },
-        messages: req.messages,
-      }),
+      headers: built.headers,
+      body: JSON.stringify(built.body),
     });
   } catch (e) {
-    return { ok: false, error: `Could not reach Together: ${String(e)}` };
+    return { ok: false, error: `Could not reach ${built.provider === "Together" ? "Together" : "the model provider"}: ${String(e)}` };
   }
   const body = await res.text();
-  if (!res.ok) return { ok: false, error: errorMessage(res.status, body) };
+  if (!res.ok) return { ok: false, error: errorMessage(built.provider, res.status, body) };
 
   try {
     const j = JSON.parse(body) as {
@@ -206,7 +194,7 @@ export async function completeJSON<T>(req: {
     const pt = j.usage?.prompt_tokens ?? 0;
     const cached = j.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     const ct = j.usage?.completion_tokens ?? 0;
-    return { ok: true, data, usage: { promptTokens: pt, cachedTokens: cached, completionTokens: ct, costUsd: costFor(req.model, pt, cached, ct) } };
+    return { ok: true, data, usage: { promptTokens: pt, cachedTokens: cached, completionTokens: ct, costUsd: costOf(model, pt, cached, ct) } };
   } catch {
     return { ok: false, error: "The model returned something that was not valid JSON. Try again." };
   }
