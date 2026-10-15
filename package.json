@@ -11,7 +11,8 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:roundtrip": "node --env-file-if-exists=.env.local --import tsx scripts/sync-roundtrip.ts",
     "test": "node --import tsx --test tests/*.test.ts",
-    "token": "node --env-file-if-exists=.env.local --import tsx scripts/mint-token.mjs"
+    "token": "node --env-file-if-exists=.env.local --import tsx scripts/mint-token.mjs",
+    "mcp:smoke": "node --env-file-if-exists=.env.local --import tsx scripts/mcp-smoke.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.13",

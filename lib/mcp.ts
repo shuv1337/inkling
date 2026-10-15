@@ -8,12 +8,13 @@
  * (usegloss.io/mcp/gls_...) for clients that only take a URL.
  */
 
-import { hashToken, looksLikeToken } from "./agent";
+import { hashToken, looksLikeToken, type TokenScope } from "./agent";
 import { normalizeUrl } from "./links";
 import { blockText, textToArticle, wordCount, type Article } from "./article";
 import { shelfOf, shelveForUser, tokenUser, type ShelfRow } from "./db";
 import { arxivFullText, fetchArticle, notAnArticle } from "./fetch-article";
 import { TOPIC, TOPICS, isTopic, yearOf, type TopicKey } from "./library";
+import { addHighlight, addNote, getBrief, getHighlights, getItem, getNotes, listItems, searchItems } from "./library-read";
 import { chargeFree, checkFreeUser } from "./quota";
 import { allow } from "./ratelimit";
 import { classify } from "./shelve";
@@ -27,11 +28,12 @@ const MAX_TEXT = 400_000;
 const PER_DAY = 1000;
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://usegloss.io";
 
-const INSTRUCTIONS = `Gloss is a reader. This server is the reader's own library in Gloss: save articles to it, and look through what is there.
+const INSTRUCTIONS = `Gloss is a reader. This server is the reader's own library in Gloss: save articles to it, and read what is there.
 When saving from social posts or bookmarks, send the URL of the article, essay or paper itself (the link inside the post), not the post. Gloss reads each page in, sorts it onto a topic, and it appears on the reader's shelves the next time they open Gloss.
-Gloss can't fetch posts on X and other social sites, videos, or pages behind a login. When the post itself is the piece (an X Article, a long post, a thread) or the reader wants a video's transcript, read it yourself and send the full text with save_text.`;
+Gloss can't fetch posts on X and other social sites, videos, or pages behind a login. When the post itself is the piece (an X Article, a long post, a thread) or the reader wants a video's transcript, read it yourself and send the full text with save_text.
+To read the library, list_items lists the shelf, search_items finds words in the full text, and get_item returns the text (markdown, or blocks) a page at a time. get_highlights, get_notes, and get_brief return the reader's marks, questions, and brief. add_highlight and add_note write those, and they show up in Gloss after the next sync. A token may be limited to read or write.`;
 
-const TOOLS = [
+export const TOOLS = [
   {
     name: "save_articles",
     title: "Save articles to the library",
@@ -86,7 +88,144 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
+  {
+    name: "list_items",
+    title: "List texts on the shelf",
+    description: "List texts in the reader's library, newest first. Optional topic key, and `since` as a date to see what changed after it. Pass the returned nextCursor back as `cursor` for the next page.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: { type: "string", enum: TOPICS.map((t) => t.key), description: "A topic key, from list_topics." },
+        since: { type: "string", description: "Only texts updated at or after this date." },
+        limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+        cursor: { type: "string", description: "The nextCursor from the previous page." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "search_items",
+    title: "Search the full text",
+    description: "Find words in the full text of the library, not only titles. Returns a short snippet for each match.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Words to find in the text." },
+        limit: { type: "integer", minimum: 1, maximum: 20, default: 10 },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_item",
+    title: "Read a text",
+    description: "The full text of one library item, as markdown or as blocks. Long texts come back a page at a time: pass nextOffset back as offset.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The text's id, from list_items or search_items." },
+        format: { type: "string", enum: ["markdown", "blocks"], default: "markdown" },
+        offset: { type: "integer", minimum: 0, description: "Character offset into the text. 0 is the start." },
+        max_chars: { type: "integer", minimum: 1, maximum: 40000, default: 8000 },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_highlights",
+    title: "Read highlights",
+    description: "The reader's highlights: the quote, its colour, and where it sits in the text. Filter by a text id, or by `since`.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Only highlights on this text." },
+        since: { type: "string", description: "Only highlights updated at or after this date." },
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_notes",
+    title: "Read notes",
+    description: "The reader's questions and notes on a text (or across the library): the question and the turns so far.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Only notes on this text." },
+        since: { type: "string", description: "Only notes updated at or after this date." },
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_brief",
+    title: "Read the brief",
+    description: "The brief Gloss wrote for one text: the gist, the claims, and the caveats. Null when the reader has not briefed it.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The text's id." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "add_highlight",
+    title: "Highlight a passage",
+    description: "Mark a passage the reader can see in Gloss. The quote must appear inside a single block of the text. It shows up after the next sync.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The text's id." },
+        quote: { type: "string", description: "The exact passage to mark." },
+        color: { type: "string", enum: ["yellow", "green", "blue", "pink"] },
+        note: { type: "string", description: "An optional note kept with the highlight." },
+      },
+      required: ["id", "quote"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: "add_note",
+    title: "Add a note",
+    description: "Save a question about a text, optionally tied to a quote in one block. It shows up in the reader's notebook after the next sync.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The text's id." },
+        question: { type: "string", description: "The question or note." },
+        quote: { type: "string", description: "A passage in the text the note is about." },
+      },
+      required: ["id", "question"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
 ];
+
+const READ_TOOLS = ["search_library", "list_topics", "list_items", "search_items", "get_item", "get_highlights", "get_notes", "get_brief"] as const;
+const WRITE_TOOLS = ["save_articles", "save_text", "add_highlight", "add_note"] as const;
+type ToolName = (typeof READ_TOOLS)[number] | (typeof WRITE_TOOLS)[number];
+
+export function scopeOf(name: string): TokenScope | null {
+  if ((READ_TOOLS as readonly string[]).includes(name)) return "read";
+  if ((WRITE_TOOLS as readonly string[]).includes(name)) return "write";
+  return null;
+}
+
+function isTool(name: string): name is ToolName {
+  return scopeOf(name) !== null;
+}
 
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
 
@@ -124,23 +263,23 @@ export async function handle(req: Request, pathToken?: string): Promise<Response
   const header = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   const token = looksLikeToken(header) ? header : looksLikeToken(pathToken) ? pathToken : null;
   if (!process.env.DATABASE_URL) return fail(first.id, -32000, "The Gloss library is not available on this server.", 503);
-  let who: { userId: string; label: string } | null = null;
+  let who: { userId: string; label: string; scopes: TokenScope[] } | null = null;
   try {
     who = token ? await tokenUser(hashToken(token)) : null;
   } catch {
     return fail(first.id, -32000, "The Gloss library is not reachable right now. Try again in a minute.", 503);
   }
   if (!who) return fail(first.id, -32001, `Missing or revoked Gloss token. Make one in your library at ${SITE}/library, under Connect an agent.`, 401);
-  const { userId, label } = who;
+  const { userId, label, scopes } = who;
   if (!allow(`mcp:${userId}`, 60, 60_000)) return fail(first.id, -32002, "Too many requests. Wait a minute, then try again.", 429);
 
   // Notifications get no answer; with nothing to answer, the reply is an empty 202.
-  const answers = (await Promise.all(msgs.map((m) => answer(m, userId, label)))).filter((a) => a !== null);
+  const answers = (await Promise.all(msgs.map((m) => answer(m, userId, label, scopes)))).filter((a) => a !== null);
   if (!answers.length) return new Response(null, { status: 202, headers: CORS });
   return json(batch ? answers : answers[0]);
 }
 
-async function answer(msg: Rpc, userId: string, label: string): Promise<object | null> {
+async function answer(msg: Rpc, userId: string, label: string, scopes: TokenScope[]): Promise<object | null> {
   if (msg.id === undefined || msg.method?.startsWith("notifications/")) return null;
   const ok = (result: unknown) => ({ jsonrpc: "2.0", id: msg.id, result });
   const err = (code: number, message: string) => ({ jsonrpc: "2.0", id: msg.id ?? null, error: { code, message } });
@@ -161,12 +300,11 @@ async function answer(msg: Rpc, userId: string, label: string): Promise<object |
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
       const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
+      if (!isTool(name)) return err(-32602, `Unknown tool: ${name}`);
+      const need = scopeOf(name);
+      if (need && !scopes.includes(need)) return ok(toolError(`This token does not have the ${need} scope.`));
       try {
-        if (name === "save_articles") return ok(await saveArticles(userId, args, label));
-        if (name === "save_text") return ok(await saveText(userId, args, label));
-        if (name === "search_library") return ok(await searchLibrary(userId, args));
-        if (name === "list_topics") return ok(await listTopics(userId));
-        return err(-32602, `Unknown tool: ${name}`);
+        return ok(await callTool(name, userId, args, label));
       } catch (e) {
         return ok(toolError(`Something went wrong: ${e instanceof Error ? e.message : String(e)}`));
       }
@@ -178,6 +316,100 @@ async function answer(msg: Rpc, userId: string, label: string): Promise<object |
 
 const toolError = (text: string) => ({ content: [{ type: "text", text }], isError: true });
 const toolResult = (text: string, structured: Record<string, unknown>) => ({ content: [{ type: "text", text }], structuredContent: structured });
+
+async function callTool(name: ToolName, userId: string, args: Record<string, unknown>, label: string) {
+  switch (name) {
+    case "save_articles":
+      return saveArticles(userId, args, label);
+    case "save_text":
+      return saveText(userId, args, label);
+    case "search_library":
+      return searchLibrary(userId, args);
+    case "list_topics":
+      return listTopics(userId);
+    case "list_items":
+      return renderList(await listItems(userId, args));
+    case "search_items":
+      return renderSearch(await searchItems(userId, args));
+    case "get_item":
+      return renderItem(await getItem(userId, args));
+    case "get_highlights":
+      return renderHighlights(await getHighlights(userId, args));
+    case "get_notes":
+      return renderNotes(await getNotes(userId, args));
+    case "get_brief":
+      return renderBrief(await getBrief(userId, args));
+    case "add_highlight":
+      return renderAddedHighlight(await addHighlight(userId, args));
+    case "add_note":
+      return renderAddedNote(await addNote(userId, args));
+    default: {
+      const neverName: never = name;
+      return toolError(`Unknown tool: ${neverName}`);
+    }
+  }
+}
+
+function renderList(result: Awaited<ReturnType<typeof listItems>>) {
+  if (!result.ok) return toolError(result.error);
+  const lines = result.items.map((item) => `- ${item.title || item.id}${item.author ? `, ${item.author}` : ""} (${item.topic}, ${item.words} words) [${item.id}]`);
+  const text = result.items.length ? `${result.items.length} text${result.items.length === 1 ? "" : "s"}:\n${lines.join("\n")}${result.nextCursor ? `\n\nnextCursor: ${result.nextCursor}` : ""}` : "Nothing on the shelf matches.";
+  return toolResult(text, { items: result.items, nextCursor: result.nextCursor });
+}
+
+function renderSearch(result: Awaited<ReturnType<typeof searchItems>>) {
+  if (!result.ok) return toolError(result.error);
+  const lines = result.items.map((item) => `- ${item.title || item.id} [${item.id}]\n  ${item.snippet}`);
+  const text = result.items.length ? `${result.items.length} match${result.items.length === 1 ? "" : "es"}:\n${lines.join("\n")}` : "Nothing in the library matches.";
+  return toolResult(text, { items: result.items });
+}
+
+function renderItem(result: Awaited<ReturnType<typeof getItem>>) {
+  if (!result.ok) return toolError(result.error);
+  const more = result.nextOffset != null ? `\n\nMore follows. Ask again with offset ${result.nextOffset}.` : "";
+  const body = result.format === "markdown" ? (result.text ?? "") : JSON.stringify(result.blocks ?? []);
+  return toolResult(`${result.title}\n\n${body}${more}`, {
+    id: result.id,
+    title: result.title,
+    format: result.format,
+    offset: result.offset,
+    nextOffset: result.nextOffset,
+    total: result.total,
+    ...(result.text != null ? { text: result.text } : {}),
+    ...(result.blocks ? { blocks: result.blocks } : {}),
+  });
+}
+
+function renderHighlights(result: Awaited<ReturnType<typeof getHighlights>>) {
+  if (!result.ok) return toolError(result.error);
+  const lines = result.highlights.map((mark) => `- "${mark.quote}"${mark.color ? ` (${mark.color})` : ""} [${mark.articleId}]`);
+  const text = result.highlights.length ? lines.join("\n") : "No highlights.";
+  return toolResult(text, { highlights: result.highlights });
+}
+
+function renderNotes(result: Awaited<ReturnType<typeof getNotes>>) {
+  if (!result.ok) return toolError(result.error);
+  const lines = result.notes.map((note) => `- ${note.question || note.turns[0]?.content || "(no question)"} [${note.articleId}]`);
+  const text = result.notes.length ? lines.join("\n") : "No notes.";
+  return toolResult(text, { notes: result.notes });
+}
+
+function renderBrief(result: Awaited<ReturnType<typeof getBrief>>) {
+  if (!result.ok) return toolError(result.error);
+  if (!result.brief) return toolResult("No brief for that text.", { brief: null });
+  const gist = typeof result.brief.gist === "string" ? result.brief.gist : "";
+  return toolResult(gist || `Brief status: ${String(result.brief.status ?? "unknown")}`, { brief: result.brief });
+}
+
+function renderAddedHighlight(result: Awaited<ReturnType<typeof addHighlight>>) {
+  if (!result.ok) return toolError(result.error);
+  return toolResult(`Highlighted: "${result.highlight.quote}"`, { highlight: result.highlight });
+}
+
+function renderAddedNote(result: Awaited<ReturnType<typeof addNote>>) {
+  if (!result.ok) return toolError(result.error);
+  return toolResult(`Noted: ${result.note.question}`, { note: result.note });
+}
 
 /* ---------- save_articles ---------- */
 
