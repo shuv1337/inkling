@@ -29,15 +29,15 @@ const PER_DAY = 1000;
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://usegloss.io";
 
 const INSTRUCTIONS = `Gloss is a reader. This server is the reader's own library in Gloss: save articles to it, and read what is there.
-When saving from social posts or bookmarks, send the URL of the article, essay or paper itself (the link inside the post), not the post. Gloss reads each page in, sorts it onto a topic, and it appears on the reader's shelves the next time they open Gloss.
-Gloss can't fetch posts on X and other social sites, videos, or pages behind a login. When the post itself is the piece (an X Article, a long post, a thread) or the reader wants a video's transcript, read it yourself and send the full text with save_text.
+When saving from social posts or bookmarks, send the URL of the article, essay or paper itself (the link inside the post), not the post. A link to a single post on X or Twitter (x.com or twitter.com, with /status/ in the path) is the exception: Gloss fetches that post, including a long post or an X Article. Gloss reads each page in, sorts it onto a topic, and it appears on the reader's shelves the next time they open Gloss.
+Gloss can't fetch profiles, other social sites, videos, or pages behind a login. When the reader wants a video's transcript or a thread you have already read, send the full text with save_text.
 To read the library, list_items lists the shelf, search_items finds words in the full text, and get_item returns the text (markdown, or blocks) a page at a time. get_highlights, get_notes, and get_brief return the reader's marks, questions, and brief. add_highlight and add_note write those, and they show up in Gloss after the next sync. A token may be limited to read or write.`;
 
 export const TOOLS = [
   {
     name: "save_articles",
     title: "Save articles to the library",
-    description: `Save web articles, essays, blog posts or papers to the reader's Gloss library. Gloss fetches each page, keeps its full text and sorts it onto a topic. Up to ${PER_CALL} URLs per call. Send the article's own URL, not a link to a post on X or another social site. Links already in the library are skipped. Returns what happened to each URL.`,
+    description: `Save web articles, essays, blog posts, papers, or a single X or Twitter post to the reader's Gloss library. Gloss fetches each page, keeps its full text and sorts it onto a topic. Up to ${PER_CALL} URLs per call. An x.com or twitter.com status link is saved as the post. Other social links are not: send the article the post points to. Links already in the library are skipped. Returns what happened to each URL.`,
     inputSchema: {
       type: "object",
       properties: { urls: { type: "array", items: { type: "string" }, minItems: 1, maxItems: PER_CALL, description: "Article URLs to save." } },

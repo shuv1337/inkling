@@ -35,6 +35,34 @@ An OpenAI-compatible speech server, including Kokoro-FastAPI, accepts `POST /v1/
 
 The reader still splits a long text at sentence ends before each request, and the same player plays the MP3.
 
+## Self-host
+
+This fork runs for one reader, on Postgres on the same machine, behind Tailscale. Copy `.env.example` to `.env.local`. Nothing in `.env.local` is committed.
+
+```bash
+npm install
+npm run db:up       # Postgres 18, bound to 127.0.0.1:5432, volume gloss-pg
+npm run db:migrate  # schema, then db/migrations, safe to repeat
+npm run dev         # http://127.0.0.1:3100
+```
+
+`AUTH_MODE` defaults to `single`: one user id (`SINGLE_USER_ID`, default `owner`), no Clerk. Set `ALLOWED_TS_USERS` to the Tailscale logins that may open the server. `AUTH_MODE=clerk` is the hosted accounts path and is the only mode that loads Clerk.
+
+The model client is OpenAI-compatible. Leave `LLM_BASE_URL` unset to keep Together, or point it at another `/v1` server and set `LLM_API_KEY`, `LLM_MODEL`, and optionally `LLM_MODELS` (`key:id:label`). `LLM_EXTRA_BODY` is extra JSON on each chat request. With no `LLM_PRICE_IN` / `LLM_PRICE_OUT` on a non-Together host, prices are 0 and the free-budget counter stays out of the way.
+
+`TTS_PROVIDER=openai-compatible` with `TTS_BASE_URL` pointed at a Kokoro-FastAPI `/v1` (its own default listen address is `http://127.0.0.1:8880/v1`) speaks with `POST /v1/audio/speech`. No host is built in. `TTS_PROVIDER=off` hides Read aloud.
+
+An agent connects with a token from `npm run token -- --label "name" --scope read,write`. The token is printed once. `read` can list, search, and read texts, highlights, notes, and briefs. `write` can save URLs and text, and add a highlight or a note. `npm run mcp:smoke` checks that path against the local database.
+
+A link to one post on X or Twitter (`/status/<id>` on x.com or twitter.com) is fetched as the post. `X_FETCH` defaults to `fx,api`: fxtwitter, then the X API if `X_BEARER_TOKEN` is set. Profiles and other social sites are still refused. `node --env-file-if-exists=.env.local --import tsx scripts/x-smoke.mjs` tries one live post and skips itself if the network is down.
+
+Still to do on the machine that serves Gloss, not in this repo:
+
+- a user systemd unit that runs `npm run start -- -H 127.0.0.1` (port 3100)
+- `tailscale serve --https=443 http://127.0.0.1:3100`, and not Tailscale Funnel
+- `.env.local` only on that machine
+- a nightly `pg_dump` of the `gloss` database
+
 ## Future Tasks
 
 - [ ] Ship it as a browser extension that opens the same margin on any page

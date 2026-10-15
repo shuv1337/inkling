@@ -12,6 +12,7 @@ import { Readability } from "@mozilla/readability";
 import { htmlToBlocks } from "@/lib/html-to-blocks";
 import { slugify, tidyTitle, undash, type Article, type Block } from "@/lib/article";
 import { APP_UA } from "@/lib/together";
+import { fetchXPost, xStatusId } from "@/lib/x-post";
 
 const MAX_BYTES = 6_000_000;
 const MAX_PDF_BYTES = 25_000_000;
@@ -115,6 +116,7 @@ export function notAnArticle(url: string): "social" | "video" | null {
   } catch {
     return null;
   }
+  if (xStatusId(url)) return null;
   const at = `${u.hostname.replace(/^www\./, "")}${u.pathname}`;
   return SOCIAL.test(at) ? "social" : VIDEO.test(at) ? "video" : null;
 }
@@ -149,6 +151,7 @@ export type FetchResult =
 export async function fetchArticle(raw: string, opts: { pdf?: boolean } = {}): Promise<FetchResult> {
   const checked = await safeUrl((opts.pdf && arxivFullText(raw, "pdf")) || raw.trim());
   if (typeof checked === "string") return { ok: false, error: checked, status: 400 };
+  if (xStatusId(checked.toString())) return fetchXPost(checked.toString());
   const kind = notAnArticle(checked.toString());
   if (kind === "social") return { ok: false, error: "That's a post, not an article. Open the link it shares, or copy the post and use Paste text.", status: 422 };
   if (kind === "video") return { ok: false, error: "That's a video, and Gloss reads text. Copy its transcript and use Paste text.", status: 422 };

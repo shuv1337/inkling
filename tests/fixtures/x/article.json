@@ -1,0 +1,29 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "id": "3333333333333333333",
+    "text": "I wrote an article",
+    "created_at": "Wed Jun 11 12:00:00 +0000 2025",
+    "author": { "name": "Ada Lovelace", "screen_name": "ada" },
+    "article": {
+      "title": "On the Notes",
+      "preview_text": "A short standfirst that is not the first paragraph.",
+      "content": {
+        "blocks": [
+          { "text": "On the Notes", "type": "header-one", "entityRanges": [] },
+          {
+            "text": "The analytical engine weaves algebraical patterns.",
+            "type": "unstyled",
+            "entityRanges": [{ "offset": 4, "length": 10, "key": 0 }]
+          },
+          { "text": " ", "type": "atomic", "entityRanges": [{ "offset": 0, "length": 1, "key": 1 }] }
+        ],
+        "entityMap": {
+          "0": { "type": "LINK", "data": { "url": "https://example.com/engine" } },
+          "1": { "type": "MEDIA", "data": { "url": "https://pbs.twimg.com/media/example.jpg" } }
+        }
+      }
+    }
+  }
+}

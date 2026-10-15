@@ -1,0 +1,13 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "id": "2222222222222222222",
+    "text": "Short preview",
+    "note_tweet": {
+      "text": "This is the full note tweet body that is much longer than the preview and must be what Gloss reads, word for word, including the closing phrase zebrafish-note."
+    },
+    "created_at": "Wed Jun 11 12:00:00 +0000 2025",
+    "author": { "name": "Grace Hopper", "screen_name": "grace" }
+  }
+}

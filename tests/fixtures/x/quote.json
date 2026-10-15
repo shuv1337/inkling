@@ -1,0 +1,15 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "id": "4444444444444444444",
+    "text": "Worth reading.",
+    "created_at": "Wed Jun 11 12:00:00 +0000 2025",
+    "author": { "name": "Alan", "screen_name": "alan" },
+    "quote": {
+      "id": "4455555555555555555",
+      "text": "The quoted sentence.",
+      "author": { "name": "Edsger", "screen_name": "dijkstra" }
+    }
+  }
+}

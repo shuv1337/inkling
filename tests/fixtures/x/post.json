@@ -1,0 +1,11 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "id": "1111111111111111111",
+    "text": "Hello from a status.",
+    "created_at": "Wed Jun 11 12:00:00 +0000 2025",
+    "author": { "name": "Test Author", "screen_name": "tester" },
+    "media": { "photos": [{ "url": "https://pbs.twimg.com/media/pic.jpg" }] }
+  }
+}
