@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["linkedom"],
+  serverExternalPackages: ["linkedom", "postgres"],
   poweredByHeader: false,
   async headers() {
     return [

@@ -1,4 +1,4 @@
--- Gloss: a signed-in reader's shelf, marks and notes, mirrored from the browser.
+-- Gloss: a reader's shelf, marks and notes, mirrored from the browser.
 -- Every synced table has the same shape so one sync route serves them all:
 -- rows are owned by a Clerk user id, carry the client's object as jsonb, and
 -- are never hard-deleted by the app (a tombstone tells other devices).
@@ -97,3 +97,9 @@ create table if not exists agent_tokens (
 );
 
 create index if not exists agent_tokens_user on agent_tokens (user_id);
+
+-- Which numbered files in db/migrations have been applied. scripts/migrate.mjs owns the rows.
+create table if not exists schema_migrations (
+  version text primary key,
+  applied_at timestamptz not null default now()
+);

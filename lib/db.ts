@@ -1,19 +1,59 @@
 /**
- * Postgres on Neon, over its HTTP driver: one round trip per query, no pool
- * to manage in serverless functions. Server-side only.
+ * Postgres, through postgres-js. Server-side only. One pool per process.
+ * Queries use the same `$1` placeholders the Neon driver did, so the SQL
+ * stays as it is. A transaction runs those statements on one connection.
  */
 
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import postgres, { type Sql } from "postgres";
 
-let client: NeonQueryFunction<false, false> | null = null;
+export type Row = postgres.Row;
 
-export function db() {
+/** A query that runs when awaited, or inside `transaction`, but not both. */
+export type PendingQuery = PromiseLike<Row[]> & { text: string; params: unknown[] };
+
+let client: Sql | null = null;
+
+function clientOf(): Sql {
   if (!client) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set.");
-    client = neon(url);
+    client = postgres(url, { max: 10 });
   }
   return client;
+}
+
+function query(text: string, params: readonly unknown[] = []): PendingQuery {
+  const values = [...params];
+  let pending: Promise<Row[]> | null = null;
+  const run = () => (pending ??= clientOf().unsafe(text, values as never[]));
+  return {
+    text,
+    params: values,
+    then(onFulfilled, onRejected) {
+      return run().then(onFulfilled, onRejected);
+    },
+  };
+}
+
+export function db() {
+  return {
+    query,
+    transaction(queries: readonly PendingQuery[]): Promise<Row[][]> {
+      return clientOf().begin(async (tx) => {
+        const out: Row[][] = [];
+        for (const q of queries) out.push(await tx.unsafe(q.text, q.params as never[]));
+        return out;
+      });
+    },
+  };
+}
+
+/** Close the pool. Scripts call this so the process can exit. */
+export async function closeDb(): Promise<void> {
+  if (!client) return;
+  const current = client;
+  client = null;
+  await current.end({ timeout: 5 });
 }
 
 /** The tables the sync route reads and writes. Names are only ever taken from this list. */
@@ -39,7 +79,7 @@ export async function pullRows(userId: string, since: string): Promise<{ now: st
       (results[i] as Record<string, unknown>[]).map((r) => ({ id: String(r.id), articleId: String(r.article_id), data: r.deleted ? null : r.data, deleted: Boolean(r.deleted) })),
     ])
   ) as Record<Collection, PullRow[]>;
-  return { now: new Date((clock as { now: string }[])[0].now).toISOString(), changes };
+  return { now: new Date(clock[0].now as string | Date).toISOString(), changes };
 }
 
 /** Upsert every collection's rows in one transaction. The server stamps the time, so the latest write wins. */
@@ -47,7 +87,7 @@ export async function pushRows(userId: string, changes: Partial<Record<Collectio
   const sql = db();
   const queries = Object.entries(changes)
     .filter(([t, rows]) => isCollection(t) && rows?.length)
-    .map(([t, rows]) => sql.query(upsert(t as Collection), [userId, JSON.stringify(rows)]));
+    .map(([t, rows]) => sql.query(upsert(t as Collection), [userId, rows]));
   // A text taken off the shelf takes its painted cover with it.
   const gone = (changes.articles ?? []).filter((r) => r.deleted).map((r) => r.id);
   if (gone.length) queries.push(sql.query("delete from covers where user_id = $1 and id = any($2::text[])", [userId, gone]));
@@ -97,7 +137,7 @@ export async function createToken(userId: string, id: string, hash: string, labe
 
 export async function listTokens(userId: string): Promise<AgentToken[]> {
   const rows = await db().query("select id, label, created_at, last_used_at from agent_tokens where user_id = $1 and not revoked order by created_at desc", [userId]);
-  return rows.map((r) => ({ id: String(r.id), label: String(r.label), createdAt: new Date(r.created_at).toISOString(), lastUsedAt: r.last_used_at ? new Date(r.last_used_at).toISOString() : null }));
+  return rows.map((r) => ({ id: String(r.id), label: String(r.label), createdAt: new Date(r.created_at as string | Date).toISOString(), lastUsedAt: r.last_used_at ? new Date(r.last_used_at as string | Date).toISOString() : null }));
 }
 
 export async function revokeToken(userId: string, id: string): Promise<boolean> {
@@ -131,6 +171,6 @@ export async function shelveForUser(userId: string, item: { id: string }, doc: u
   await db().query(
     `insert into articles (user_id, id, article_id, data, doc, deleted, updated_at) values ($1, $2, $2, $3, $4, false, now())
      on conflict (user_id, id) do update set data = excluded.data, doc = excluded.doc, deleted = false, updated_at = now()`,
-    [userId, item.id, JSON.stringify(item), JSON.stringify(doc)]
+    [userId, item.id, item, doc]
   );
 }

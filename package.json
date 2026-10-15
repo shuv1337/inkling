@@ -7,16 +7,18 @@
     "build": "next build",
     "start": "next start --port 3100",
     "lint": "tsc --noEmit",
-    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs"
+    "db:up": "docker compose --env-file .env.local -f deploy/docker-compose.yml up -d",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "db:roundtrip": "node --env-file-if-exists=.env.local --import tsx scripts/sync-roundtrip.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.13",
     "@llamaindex/liteparse-wasm": "2.15.1",
     "@mozilla/readability": "^0.6.0",
-    "@neondatabase/serverless": "^1.2.0",
     "linkedom": "^0.18.13",
     "lucide-react": "^1.53.0",
     "next": "^16.4.0",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zustand": "^5.0.15"
@@ -27,6 +29,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
