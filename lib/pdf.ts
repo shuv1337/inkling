@@ -2,7 +2,7 @@
 
 import type { LayoutBlock } from "@llamaindex/liteparse-wasm";
 import { inlineMd, markdownBlocks, slugify, tidyTitle, undash, type Article, type Block } from "./article";
-import { readApiKey } from "./ask";
+import { llmStatus, readApiKey } from "./ask";
 
 /**
  * PDF to Gloss blocks, in two passes.
@@ -14,8 +14,8 @@ import { readApiKey } from "./ask";
  *    glyphs) are rendered and read by a vision model on the server
  *    (/api/pdf-page), a few at a time.
  *
- * Longer PDFs need the reader's own Together key: every question sends the
- * whole text, so a book would spend a day's free use in a few questions.
+ * Longer PDFs need the reader's own API key, or a linked ChatGPT plan: every
+ * question sends the whole text, so a book would spend a day's free use in a few questions.
  */
 
 export const PDF_FREE_PAGES = 20;
@@ -71,9 +71,14 @@ export async function pdfToArticle(file: File, onProgress?: PdfProgress): Promis
   const total = session.totalPages;
   const pages = Math.min(total, PDF_MAX_PAGES);
   const label = `${pages} page${pages === 1 ? "" : "s"}`;
-  if (pages > PDF_FREE_PAGES && !readApiKey()) {
+  const server = await llmStatus();
+  if (pages > PDF_FREE_PAGES && !readApiKey() && !server.house) {
     session.free();
-    throw new PdfError(`This PDF has ${pages} pages. PDFs over ${PDF_FREE_PAGES} pages use your own Together key, since every question sends the whole text.`, true);
+    const why =
+      server.provider === "chatgpt"
+        ? `This PDF has ${pages} pages. ChatGPT is not linked, so long PDFs stay closed. Run the one-time login, then try again.`
+        : `This PDF has ${pages} pages. PDFs over ${PDF_FREE_PAGES} pages use your own API key, since every question sends the whole text.`;
+    throw new PdfError(why, true);
   }
 
   // Pass 1: the text layer, a batch at a time.
@@ -286,7 +291,7 @@ async function readByVision(lp: LP, bytes: Uint8Array, pageNums: number[], into:
           });
           const j = (await res.json()) as { markdown?: string; error?: string; code?: string };
           if (j.markdown) into.set(s.pageNum, markdownBlocks(htmlTablesToMarkdown(j.markdown)));
-          else if (j.code === "need_key") stop = new PdfError(j.error ?? "Add your Together key to read scanned pages.", true);
+          else if (j.code === "need_key") stop = new PdfError(j.error ?? "Add your API key to read scanned pages.", true);
         } catch {}
         done++;
         onProgress?.(done / pageNums.length, label());

@@ -17,6 +17,31 @@ export function readApiKey(): string {
   }
 }
 
+export type LlmStatus = {
+  provider: "chatgpt" | "compat";
+  house: boolean;
+  chatgpt: { linked: boolean; expiresAt: string | null; email: string | null } | null;
+};
+
+const EMPTY_STATUS: LlmStatus = { provider: "compat", house: false, chatgpt: null };
+
+let statusPromise: Promise<LlmStatus> | null = null;
+
+/** What the server can answer with. The ChatGPT token is not in this payload. */
+export function llmStatus(): Promise<LlmStatus> {
+  if (!statusPromise) {
+    statusPromise = fetch("/api/key")
+      .then((res) => res.json())
+      .then((body: { provider?: string; house?: boolean; chatgpt?: LlmStatus["chatgpt"] }): LlmStatus => ({
+        provider: body.provider === "chatgpt" ? "chatgpt" : "compat",
+        house: Boolean(body.house),
+        chatgpt: body.chatgpt ?? null,
+      }))
+      .catch(() => EMPTY_STATUS);
+  }
+  return statusPromise;
+}
+
 const controllers = new Map<string, AbortController>();
 
 export function stopGloss(id: string) {

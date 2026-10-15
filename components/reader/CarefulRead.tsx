@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Article } from "@/lib/article";
-import { openKeyMenu, readApiKey } from "@/lib/ask";
+import { llmStatus, openKeyMenu, readApiKey } from "@/lib/ask";
 import { readCarefully } from "@/lib/careful";
 import { startUpgrade, type UpgradeProgress } from "@/lib/upgrade";
 import { loadPdf, useGlosses, useHighlights } from "@/lib/store";
@@ -18,6 +18,8 @@ export function CarefulRead({ article }: { article: Article }) {
   const [hasPdf, setHasPdf] = useState(false);
   const [state, setState] = useState<State>({ kind: "idle" });
   const [hasKey, setHasKey] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
+  const [provider, setProvider] = useState<"chatgpt" | "compat">("compat");
   const marks = useHighlights(article.id).length + useGlosses(article.id).length;
   const abort = useRef<AbortController | null>(null);
   const [upgrading, setUpgrading] = useState<UpgradeProgress | null>(null);
@@ -32,6 +34,11 @@ export function CarefulRead({ article }: { article: Article }) {
     let live = true;
     if (article.origin === "file") void loadPdf(article.id).then((b) => live && setHasPdf(Boolean(b)));
     setHasKey(Boolean(readApiKey()));
+    void llmStatus().then((status) => {
+      if (!live) return;
+      setServerReady(status.house);
+      setProvider(status.provider);
+    });
     // The key can be added from the menu while this is on screen.
     const recheck = () => setHasKey(Boolean(readApiKey()));
     window.addEventListener("storage", recheck);
@@ -52,8 +59,9 @@ export function CarefulRead({ article }: { article: Article }) {
     const r = await readCarefully(article, abort.current.signal);
     setState(r.ok ? { kind: "done" } : { kind: "error", error: r.error, needKey: r.needKey });
   };
+  const ready = hasKey || serverReady;
   const start = () => {
-    if (!readApiKey()) return openKeyMenu();
+    if (!readApiKey() && !serverReady) return openKeyMenu();
     if (marks > 0) setState({ kind: "confirm" });
     else void run();
   };
@@ -70,7 +78,7 @@ export function CarefulRead({ article }: { article: Article }) {
           <button type="button" onClick={start} className={link}>
             Read it more carefully
           </button>
-          {!hasKey && <span className="text-ink-4"> · needs your Together key</span>}
+          {!ready && <span className="text-ink-4"> · {provider === "chatgpt" ? "needs ChatGPT linked" : "needs your API key"}</span>}
         </p>
       )}
       {state.kind === "confirm" && (
@@ -99,7 +107,7 @@ export function CarefulRead({ article }: { article: Article }) {
           <span className="text-rubric-text">{state.error}</span>{" "}
           {state.needKey ? (
             <button type="button" onClick={openKeyMenu} className={link}>
-              Add your Together key
+              {provider === "chatgpt" ? "Link ChatGPT" : "Add your API key"}
             </button>
           ) : (
             <button type="button" onClick={() => setState({ kind: "idle" })} className={link}>

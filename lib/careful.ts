@@ -3,11 +3,11 @@
 /**
  * "Read it more carefully": the PDF behind a text, read again by LlamaParse
  * through /api/pdf-careful, for layouts the free reader gets wrong (columns,
- * tables, maths, scans). Needs the reader's own Together key.
+ * tables, maths, scans). Needs the reader's own API key, or a linked ChatGPT plan.
  */
 
 import { markdownBlocks, wordCount, type Article } from "./article";
-import { readApiKey } from "./ask";
+import { llmStatus, readApiKey } from "./ask";
 import { htmlTablesToMarkdown, stitchBlocks } from "./pdf";
 import { loadDoc, loadPdf, useStore } from "./store";
 
@@ -20,8 +20,15 @@ export async function readCarefully(shown: Article, signal?: AbortSignal): Promi
   const article = (await loadDoc(shown.id)) ?? shown;
   const pdf = await loadPdf(article.id);
   if (!pdf) return { ok: false, error: "The PDF is not on this device. Open it again from the file to read it carefully." };
+  const server = await llmStatus();
   const key = readApiKey();
-  if (!key) return { ok: false, error: "Reading carefully needs your Together key.", needKey: true };
+  if (!key && !server.house) {
+    return {
+      ok: false,
+      error: server.provider === "chatgpt" ? "Reading carefully needs ChatGPT to be linked." : "Reading carefully needs your API key.",
+      needKey: true,
+    };
+  }
 
   const form = new FormData();
   form.append("file", pdf, "document.pdf");
