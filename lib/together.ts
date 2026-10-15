@@ -11,7 +11,8 @@
  *    Other providers do not get that field unless LLM_EXTRA_BODY asks for it.
  */
 
-import { APP_UA, buildChatRequest, providerError } from "./llm";
+import { completeChatgptJSON, streamChatgpt } from "./chatgpt";
+import { APP_UA, buildChatRequest, llmProvider, providerError } from "./llm";
 import { costOf, type ModelKey, type StreamEvent, type Usage } from "./models";
 
 export { APP_UA };
@@ -49,6 +50,18 @@ export async function* streamChat(req: {
   /** "none" sends the tools (a conversation that already used one needs them) but asks for an answer. */
   toolChoice?: "auto" | "none";
 }): AsyncGenerator<StreamEvent> {
+  const provider = llmProvider();
+  switch (provider) {
+    case "chatgpt":
+      yield* streamChatgpt(req);
+      return;
+    case "compat":
+      break;
+    default: {
+      const unreachable: never = provider;
+      throw new Error(unreachable);
+    }
+  }
   const built = buildChatRequest({
     model: req.model,
     messages: req.messages,
@@ -157,6 +170,17 @@ export async function completeJSON<T>(req: {
   /** Let the model reason before it answers, for checking a text against itself. Its thinking spends from maxTokens. */
   thinking?: boolean;
 }): Promise<{ ok: true; data: T; usage: Usage } | { ok: false; error: string }> {
+  const provider = llmProvider();
+  switch (provider) {
+    case "chatgpt":
+      return completeChatgptJSON<T>(req);
+    case "compat":
+      break;
+    default: {
+      const unreachable: never = provider;
+      throw new Error(unreachable);
+    }
+  }
   const built = buildChatRequest({
     model: req.model,
     messages: req.messages,

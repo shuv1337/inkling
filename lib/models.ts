@@ -2,7 +2,10 @@
  * The model allow-list and wire types. Safe to import on the client: no keys,
  * no fetches. lib/llm.ts does the network side.
  */
-import { isTogetherBase } from "./llm";
+import { isChatgptProvider, isTogetherBase } from "./llm";
+
+/** The model slug in OpenAI's Sign in with ChatGPT example. Set LLM_MODEL to a slug the account can actually call. */
+export const CHATGPT_DEFAULT_MODEL = "gpt-6.1-sol";
 
 export type ModelEntry = {
   id: string;
@@ -108,13 +111,15 @@ function prices(env: Env, together: boolean): Pick<ModelEntry, "inPerM" | "cache
 
 /** What the server may call. The client keeps the static MODELS list for labels. */
 export function modelCatalog(env: Env = process.env): Record<string, ModelEntry> {
+  const chatgpt = isChatgptProvider(env);
   const base = env.LLM_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
-  const together = !base || isTogetherBase(base);
+  const together = !chatgpt && (!base || isTogetherBase(base));
   const price = prices(env, together);
   const parsed = parseModelList(env.LLM_MODELS, price);
   if (parsed) return parsed;
-  const id = env.LLM_MODEL?.trim() || MODELS.flash.id;
-  const catalog: Record<string, ModelEntry> = { flash: { ...MODELS.flash, id, ...price } };
+  const id = env.LLM_MODEL?.trim() || (chatgpt ? CHATGPT_DEFAULT_MODEL : MODELS.flash.id);
+  const label = chatgpt && !env.LLM_MODEL?.trim() ? "ChatGPT" : id === MODELS.flash.id ? MODELS.flash.label : id;
+  const catalog: Record<string, ModelEntry> = { flash: { ...MODELS.flash, id, label, short: chatgpt ? "ChatGPT" : MODELS.flash.short, blurb: chatgpt ? "Signed in with ChatGPT." : MODELS.flash.blurb, ...price } };
   const fast = env.LLM_MODEL_FAST?.trim();
   if (fast) catalog.fast = { ...MODELS.flash, id: fast, label: fast, short: "Fast", blurb: fast, ...price };
   return catalog;

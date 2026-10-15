@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
-import { validateKey } from "@/lib/ask";
+import { llmStatus, validateKey, type LlmStatus } from "@/lib/ask";
 import { BRAND } from "@/lib/brand";
 import { Popover, barBtn } from "./Popover";
 
@@ -11,16 +11,21 @@ const STORAGE_KEY = "together:api-key";
 /** Today's free use of the shared key, as the share still unspent (0 to 1). */
 type Free = { left: number; signedIn: boolean };
 
-/** Bring your own Together key. Stored in this browser only. A little reading a day is free without one. */
+/** A pasted key, or the ChatGPT link. The ChatGPT token stays on the server. */
 export function KeyMenu() {
   const [key, setKey] = useState("");
   const [house, setHouse] = useState<boolean | null>(null);
   const [free, setFree] = useState<Free | null>(null);
+  const [status, setStatus] = useState<LlmStatus | null>(null);
 
   useEffect(() => {
     try {
       setKey(localStorage.getItem(STORAGE_KEY) ?? "");
     } catch {}
+    void llmStatus().then((next) => {
+      setStatus(next);
+      setHouse(next.house);
+    });
     fetch("/api/key")
       .then((r) => r.json())
       .then((j: { house?: boolean; free?: Free | null }) => {
@@ -35,7 +40,22 @@ export function KeyMenu() {
   }, []);
 
   const spent = house === false || free?.left === 0;
-  const status = key ? "Your key" : spent ? "Add a key" : free && free.left <= 0.25 ? "Low on free use" : null;
+  const keyLabel = key ? "Your key" : spent ? "Add a key" : free && free.left <= 0.25 ? "Low on free use" : null;
+  const chatgpt = status?.provider === "chatgpt";
+  const linked = Boolean(status?.chatgpt?.linked);
+
+  if (chatgpt) {
+    return (
+      <Popover label="ChatGPT" tip={linked ? "ChatGPT is linked" : "ChatGPT is not linked"} width={320} triggerClass={barBtn} openOn="gloss:key" trigger={
+        <>
+          {linked ? <span aria-hidden className="size-1.5 rounded-full bg-good" /> : <KeyRound size={15} aria-hidden />}
+          <span className="hidden sm:inline">{linked ? "ChatGPT" : "Link ChatGPT"}</span>
+        </>
+      }>
+        {() => <ChatgptPanel status={status} />}
+      </Popover>
+    );
+  }
 
   return (
     <Popover
@@ -47,12 +67,32 @@ export function KeyMenu() {
       trigger={
         <>
           {key ? <span aria-hidden className="size-1.5 rounded-full bg-good" /> : <KeyRound size={15} aria-hidden />}
-          {status && <span className="hidden sm:inline">{status}</span>}
+          {keyLabel && <span className="hidden sm:inline">{keyLabel}</span>}
         </>
       }
     >
       {(close) => <KeyPanel current={key} house={house} free={free} onSave={(v) => setKey(v)} close={close} />}
     </Popover>
+  );
+}
+
+function ChatgptPanel({ status }: { status: LlmStatus | null }) {
+  const linked = Boolean(status?.chatgpt?.linked);
+  const email = status?.chatgpt?.email;
+  const expires = status?.chatgpt?.expiresAt;
+  const when = expires ? new Date(expires).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null;
+  return (
+    <div>
+      <p className="text-[13.5px] font-medium text-ink">ChatGPT</p>
+      {linked ? (
+        <>
+          <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Linked{email ? ` as ${email}` : ""}. Gloss refreshes access on its own.</p>
+          <p className="mt-2 text-[12.5px] leading-snug text-ink-3">{when ? `The current access token expires ${when}.` : "Expiry time is not available."}</p>
+        </>
+      ) : (
+        <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Not linked. On the machine that serves Gloss, run npm run chatgpt:login.</p>
+      )}
+    </div>
   );
 }
 

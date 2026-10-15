@@ -23,6 +23,17 @@ export function isTogetherBase(baseUrl: string): boolean {
   }
 }
 
+export type LlmProvider = "chatgpt" | "compat";
+
+/** `chatgpt` is Sign in with ChatGPT. Unset and `compat` keep the OpenAI-compatible client. */
+export function llmProvider(env: Env = process.env): LlmProvider {
+  return env.LLM_PROVIDER?.trim().toLowerCase() === "chatgpt" ? "chatgpt" : "compat";
+}
+
+export function isChatgptProvider(env: Env = process.env): boolean {
+  return llmProvider(env) === "chatgpt";
+}
+
 export type LlmSettings = {
   baseUrl: string;
   apiKey: string;
@@ -51,6 +62,7 @@ export function skipKeyCheck(env: Env = process.env): boolean {
  * TOGETHER_API_KEY, or an explicit LLM_BASE_URL with LLM_SKIP_KEY_CHECK.
  */
 export function hasLlmConfig(env: Env = process.env): boolean {
+  if (isChatgptProvider(env)) return true;
   if (env.LLM_API_KEY?.trim() || env.TOGETHER_API_KEY?.trim()) return true;
   return Boolean(env.LLM_BASE_URL?.trim()) && skipKeyCheck(env);
 }
@@ -167,10 +179,18 @@ export type VisionSettings =
   | { enabled: false; reason: string }
   | { enabled: true; model: string; layoutModel: string; apiKey: string; baseUrl: string; together: boolean; provider: string };
 
-/** Scanned-page reading. On Together the known vision models are the default; elsewhere set VISION_MODEL, or turn it off. */
+/** The slug in OpenAI's Sign in with ChatGPT example. Override with VISION_MODEL or LLM_MODEL. */
+export const CHATGPT_VISION_MODEL = "gpt-6.1-sol";
+
+/** Scanned-page reading. On Together the known vision models are the default; elsewhere set VISION_MODEL, or turn it off. ChatGPT uses the plan, not a Together key. */
 export function visionSettings(env: Env = process.env): VisionSettings {
-  const settings = llmSettings(env);
   if (flagDisabled(env.FEATURE_VISION)) return { enabled: false, reason: "Scanned PDF reading is turned off." };
+  if (isChatgptProvider(env)) {
+    const model = env.VISION_MODEL?.trim() || env.LLM_MODEL?.trim() || CHATGPT_VISION_MODEL;
+    const layoutModel = env.VISION_LAYOUT_MODEL?.trim() || model;
+    return { enabled: true, model, layoutModel, apiKey: "", baseUrl: "https://api.openai.com/v1", together: false, provider: "ChatGPT" };
+  }
+  const settings = llmSettings(env);
   const model = env.VISION_MODEL?.trim() || (settings.together ? "Qwen/Qwen3.8-Flash" : "");
   const layoutModel = env.VISION_LAYOUT_MODEL?.trim() || (settings.together ? "Qwen/Qwen3.5-9B" : model);
   if (!model) return { enabled: false, reason: "Scanned PDF reading needs VISION_MODEL, or set FEATURE_VISION=0." };

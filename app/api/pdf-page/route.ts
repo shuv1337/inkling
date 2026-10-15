@@ -1,3 +1,4 @@
+import { readChatgptPage } from "@/lib/chatgpt";
 import { APP_UA, chatExtras, visionSettings } from "@/lib/llm";
 import { chargeFree, checkFree, needKey } from "@/lib/quota";
 
@@ -61,8 +62,9 @@ export async function POST(req: Request) {
 
   const headerKey = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
   const own = body.apiKey?.trim() || headerKey || undefined;
+  const chatgpt = vision.provider === "ChatGPT";
   let free: Awaited<ReturnType<typeof checkFree>> | null = null;
-  if (!own) {
+  if (!own && !chatgpt) {
     if (!vision.apiKey) return needKey(null);
     free = await checkFree(req, 90);
     if (!free.ok) return needKey(free);
@@ -71,6 +73,11 @@ export async function POST(req: Request) {
   const layout = body.mode === "layout";
   const model = layout ? vision.layoutModel : vision.model;
   const price = layout ? LAYOUT_PRICE : PRICE;
+  if (chatgpt) {
+    const read = await readChatgptPage({ model, image, prompt: layout ? LAYOUT_PROMPT : PROMPT, signal: req.signal });
+    if (!read.ok) return Response.json({ error: read.error }, { status: read.status });
+    return Response.json({ markdown: clean(read.text) });
+  }
   const extras = chatExtras(process.env, false);
   if (!extras.ok) return Response.json({ error: extras.error }, { status: 500 });
 

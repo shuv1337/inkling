@@ -1,4 +1,6 @@
-import { APP_UA, hasLlmConfig, modelsUrl, skipKeyCheck } from "@/lib/llm";
+import { getUserId } from "@/lib/auth";
+import { chatgptStatus } from "@/lib/openai-auth";
+import { APP_UA, hasLlmConfig, isChatgptProvider, modelsUrl, skipKeyCheck } from "@/lib/llm";
 import { peekFree } from "@/lib/quota";
 
 export const runtime = "nodejs";
@@ -24,8 +26,14 @@ export async function POST(req: Request) {
   }
 }
 
-/** Whether there is a shared key, and how much of today's free allowance is left on it. */
+/** Whether the server can answer, and, on the ChatGPT plan, whether sign-in is linked. The token itself is never returned. */
 export async function GET(req: Request) {
+  const chatgpt = isChatgptProvider();
+  if (chatgpt) {
+    const userId = await getUserId();
+    const status = userId ? await chatgptStatus(userId) : { linked: false, email: null, expiresAt: null, planUsage: false };
+    return Response.json({ house: status.linked, provider: "chatgpt", chatgpt: status, free: null });
+  }
   const house = hasLlmConfig();
-  return Response.json({ house, free: house ? await peekFree(req) : null });
+  return Response.json({ house, provider: "compat", chatgpt: null, free: house ? await peekFree(req) : null });
 }

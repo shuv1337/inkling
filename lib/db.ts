@@ -38,6 +38,8 @@ function query(text: string, params: readonly unknown[] = []): PendingQuery {
   };
 }
 
+export type TxQuery = (text: string, params?: readonly unknown[]) => Promise<Row[]>;
+
 export function db() {
   return {
     query,
@@ -49,6 +51,18 @@ export function db() {
       });
     },
   };
+}
+
+/**
+ * One transaction, with room for work between statements. The ChatGPT refresh
+ * holds its lock across the token request, which a list of queries cannot do.
+ */
+export async function withTransaction<T>(fn: (query: TxQuery) => Promise<T>): Promise<T> {
+  const result = await clientOf().begin(async (tx) => {
+    const query: TxQuery = (text, params = []) => tx.unsafe(text, [...params] as never[]);
+    return fn(query);
+  });
+  return result as T;
 }
 
 /** Close the pool. Scripts call this so the process can exit. */
