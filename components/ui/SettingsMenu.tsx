@@ -7,6 +7,7 @@ import { MODELS, type ModelKey } from "@/lib/models";
 import { applySettings, DEFAULT_SETTINGS, FACES, MARKERS, PENS, resolveTheme, THEMES, type Settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { Popover, barBtn } from "./Popover";
+import { VoiceSelect } from "./VoiceSelect";
 import { setLibraryPrefs, useLibraryPrefs } from "@/lib/library-prefs";
 
 function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: { key: T; label: ReactNode }[]; onChange: (v: T) => void; label: string }) {
@@ -266,6 +267,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
                     <Chip label="Focus" icon={<Focus size={14} />} on={focusMode} onChange={(v) => setUI({ focusMode: v })} />
                     <Chip label="Listen" icon={<Headphones size={14} />} on={settings.listen} onChange={(v) => set({ listen: v })} />
                   </div>
+                  {settings.listen && <VoiceSelect />}
                 </>
               )}
               <PaintedCovers />

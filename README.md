@@ -27,6 +27,14 @@
 3. Run `npm install` and `npm run db:migrate` to install dependencies and create the tables
 4. Run `npm run dev` and open http://localhost:3100
 
+## Read aloud
+
+`TTS_PROVIDER` is `together` (the default), `openai-compatible`, or `off`.
+
+An OpenAI-compatible speech server, including Kokoro-FastAPI, accepts `POST /v1/audio/speech` with `model`, `voice`, `input`, and `response_format` set to `mp3`. Set `TTS_BASE_URL` to that server's `/v1` prefix (Kokoro-FastAPI's own default is `http://127.0.0.1:8880/v1`). `TTS_API_KEY` is optional. For this provider `TTS_MODEL` defaults to `kokoro` and `TTS_VOICE` to `af_heart`. `TTS_VOICES=af_heart:Heart,af_bella:Bella` fills the voice picker in settings.
+
+The reader still splits a long text at sentence ends before each request, and the same player plays the MP3.
+
 ## Future Tasks
 
 - [ ] Ship it as a browser extension that opens the same margin on any page

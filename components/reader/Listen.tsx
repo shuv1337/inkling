@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { Headphones, LoaderCircle, Pause, Play, Square } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
@@ -8,7 +8,8 @@ import { blockText, type Block } from "@/lib/article";
 import { openKeyMenu, readApiKey } from "@/lib/ask";
 import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
-import { TTS_MAX_CHARS } from "@/lib/voice";
+import { loadTtsPublic, savedVoice, type TtsPublic } from "@/lib/tts-client";
+import { passageChunks } from "@/lib/voice";
 import { barBtn } from "@/components/ui/Popover";
 import { useReader } from "./context";
 
@@ -26,24 +27,9 @@ const RATE_KEY = "gloss:listen-rate";
 
 const useListen = create<ListenState>(() => ({ status: "idle", block: null, rate: 1 }));
 
-/** Paragraphs are split at sentence ends; the very first clip is short, so the voice starts quickly. */
-function chunks(text: string, first: boolean): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+["'”’)\]]*\s*|[^.!?]+$/g) ?? [text];
-  const out: string[] = [];
-  let cur = "";
-  for (const s of sentences) {
-    const limit = first && out.length === 0 ? 220 : TTS_MAX_CHARS;
-    if (cur && (cur + s).length > limit) {
-      out.push(cur.trim());
-      cur = "";
-    }
-    cur += s;
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out.flatMap((c) => (c.length > TTS_MAX_CHARS ? c.match(new RegExp(`[\\s\\S]{1,${TTS_MAX_CHARS}}`, "g")) ?? [] : [c]));
-}
-
 const SPOKEN = new Set<Block["type"]>(["p", "h2", "h3", "quote", "li", "note"]);
+
+let ttsConfig: TtsPublic | null = null;
 
 /** A few hundred milliseconds of silence, played inside the click so phones let the voice play later. */
 function silence(): string {
@@ -84,7 +70,7 @@ function clip(i: number): Promise<string> {
     p = fetch("/api/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: items[i].text, apiKey: readApiKey() || undefined }),
+      body: JSON.stringify({ text: items[i].text, apiKey: readApiKey() || undefined, voice: savedVoice() }),
       signal,
     }).then(async (r) => {
       if (!r.ok) {
@@ -142,9 +128,13 @@ async function playAt(i: number, s: number) {
 
 export function startListening(ix: DocIndex, fromBlock: string | null) {
   stopListening();
-  // Reading aloud always uses the reader's own key: say so before anything is fetched.
-  if (!readApiKey()) {
-    useListen.setState({ status: "error", needKey: true, error: "Reading aloud uses your own Together key." });
+  if (ttsConfig && !ttsConfig.enabled) {
+    useListen.setState({ status: "error", error: ttsConfig.reason || "Reading aloud is turned off." });
+    return;
+  }
+  // Together with no server key still needs the reader's own key. An OpenAI-compatible server may not.
+  if (ttsConfig?.needsKey && !readApiKey()) {
+    useListen.setState({ status: "error", needKey: true, error: "Reading aloud needs an API key." });
     return;
   }
   const blocks = ix.article.blocks;
@@ -155,7 +145,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
     if (!SPOKEN.has(b.type)) continue;
     const t = blockText(b).trim();
     if (!t) continue;
-    for (const c of chunks(t, first)) items.push({ block: b.id, text: c });
+    for (const c of passageChunks(t, first)) items.push({ block: b.id, text: c });
     first = false;
   }
   if (!items.length) return;
@@ -227,7 +217,15 @@ export function ListenButton({ from }: { from: () => string | null }) {
   const { ix } = useReader();
   const on = useStore((s) => s.settings.listen);
   const status = useListen((s) => s.status);
-  if (!on) return null;
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    if (!on) return;
+    void loadTtsPublic().then((cfg) => {
+      ttsConfig = cfg;
+      setEnabled(cfg.enabled);
+    });
+  }, [on]);
+  if (!on || !enabled) return null;
   const active = status !== "idle";
   return (
     <button
