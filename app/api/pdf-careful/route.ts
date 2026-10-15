@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { getUserId } from "@/lib/auth";
+import { chatgptLinked } from "@/lib/openai-auth";
 import { db } from "@/lib/db";
-import { APP_UA, modelsUrl } from "@/lib/llm";
+import { APP_UA, isChatgptProvider, modelsUrl } from "@/lib/llm";
 import { parseCarefully, type Tier } from "@/lib/llamaparse";
 
 export const runtime = "nodejs";
@@ -9,7 +11,7 @@ export const maxDuration = 300;
 /**
  * "Read it more carefully": a PDF read again by LlamaParse, for layouts the
  * free reader gets wrong. It runs on Gloss's LlamaParse key, but only for
- * readers who have added their own Together key; they get a daily page cap.
+ * readers who have added their own API key, or linked ChatGPT; they get a daily page cap.
  */
 // Agentic scored 8.1/10 against cost_effective's 6.9 in scripts/pdf-eval, at $0.0125 a page against $0.0037.
 const TIER: Tier = "agentic";
@@ -61,8 +63,16 @@ async function record(subject: string, pages: number, usd: number) {
 }
 
 export async function POST(req: Request) {
+  const chatgpt = isChatgptProvider();
   const key = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (!key) return Response.json({ error: "Reading carefully needs your API key. Add it from the key button.", code: "need_key" }, { status: 401 });
+  const userId = chatgpt ? await getUserId() : null;
+  if (chatgpt) {
+    if (!userId || !(await chatgptLinked(userId))) {
+      return Response.json({ error: "ChatGPT is not linked. Run npm run chatgpt:login, then try again.", code: "need_key" }, { status: 401 });
+    }
+  } else if (!key) {
+    return Response.json({ error: "Reading carefully needs your API key. Add it from the key button.", code: "need_key" }, { status: 401 });
+  }
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BYTES + 10_000) return tooLarge();
 
   let file: File | null = null;
@@ -74,9 +84,9 @@ export async function POST(req: Request) {
   if (!file) return Response.json({ error: "Send the PDF as a file." }, { status: 400 });
   if (file.size > MAX_BYTES) return tooLarge();
 
-  if (!(await togetherKeyWorks(key))) return Response.json({ error: "The model provider did not accept your key. Check it in the key menu.", code: "need_key" }, { status: 401 });
+  if (!chatgpt && !(await togetherKeyWorks(key ?? ""))) return Response.json({ error: "The model provider did not accept your key. Check it in the key menu.", code: "need_key" }, { status: 401 });
 
-  const subject = `careful:${hash(key)}`;
+  const subject = chatgpt ? `careful:chatgpt:${userId}` : `careful:${hash(key ?? "")}`;
   const used = await pagesToday(subject);
   if (used >= PAGES_PER_DAY) return Response.json({ error: `You've read ${PAGES_PER_DAY} pages carefully today. More tomorrow.` }, { status: 429 });
 

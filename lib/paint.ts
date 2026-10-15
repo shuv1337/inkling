@@ -8,7 +8,7 @@
  */
 
 import { TOPIC, type TopicKey } from "./library";
-import { APP_UA, flagDisabled, isTogetherBase, llmSettings } from "./llm";
+import { APP_UA, flagDisabled, isChatgptProvider, isTogetherBase, llmSettings } from "./llm";
 
 const SIZE = 640;
 /**
@@ -27,6 +27,19 @@ export type CoverSettings =
 
 export function coverSettings(env: Env = process.env): CoverSettings {
   if (flagDisabled(env.FEATURE_COVERS)) return { enabled: false, reason: "Painted covers are turned off." };
+  if (isChatgptProvider(env)) {
+    const base = env.COVERS_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
+    const model = env.COVERS_MODEL?.trim() ?? "";
+    const apiKey = env.COVERS_API_KEY?.trim() ?? "";
+    if (!base || !model || !apiKey) {
+      return {
+        enabled: false,
+        reason: "Painted covers are off on the ChatGPT plan. Set FEATURE_COVERS=0. Image generation is not part of Sign in with ChatGPT.",
+      };
+    }
+    const together = isTogetherBase(base);
+    return { enabled: true, url: `${base}/images/generations`, model, apiKey, together, provider: together ? "Together" : "the image provider" };
+  }
   const llm = llmSettings(env);
   const base = (env.COVERS_BASE_URL?.trim() || llm.baseUrl).replace(/\/+$/, "");
   const together = isTogetherBase(base);
