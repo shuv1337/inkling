@@ -98,6 +98,25 @@ create table if not exists agent_tokens (
 
 create index if not exists agent_tokens_user on agent_tokens (user_id);
 
+-- Sign in with ChatGPT. One link per reader. Tokens are ciphertext (AES-GCM);
+-- the plaintext never lands in this table. agent_tokens is a different thing.
+create table if not exists openai_auth (
+  user_id text primary key,
+  client_id text not null,
+  host_id text not null,
+  issuer text not null default 'https://auth.openai.com',
+  subject text not null,
+  email text,
+  access_token_enc text,
+  refresh_token_enc text,
+  id_token_enc text,
+  scopes text[] not null default '{}',
+  expires_at timestamptz,
+  earliest_refresh_at timestamptz,
+  refreshed_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
 -- Which numbered files in db/migrations have been applied. scripts/migrate.mjs owns the rows.
 create table if not exists schema_migrations (
   version text primary key,
