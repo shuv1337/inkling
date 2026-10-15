@@ -39,6 +39,8 @@ The reader still splits a long text at sentence ends before each request, and th
 
 This fork runs for one reader, on Postgres on the same machine, behind Tailscale. Copy `.env.example` to `.env.local`. Nothing in `.env.local` is committed.
 
+**Set `ALLOWED_TS_USERS` before serving.** It is the comma-separated list of Tailscale logins allowed to open Gloss. Leave it unset and anyone on the tailnet can use the app.
+
 ```bash
 npm install
 npm run db:up       # Postgres 18, bound to 127.0.0.1:5432, volume gloss-pg
@@ -46,7 +48,7 @@ npm run db:migrate  # schema, then db/migrations, safe to repeat
 npm run dev         # http://127.0.0.1:3100
 ```
 
-`AUTH_MODE` defaults to `single`: one user id (`SINGLE_USER_ID`, default `owner`), no Clerk. Set `ALLOWED_TS_USERS` to the Tailscale logins that may open the server. `AUTH_MODE=clerk` is the hosted accounts path and is the only mode that loads Clerk.
+`AUTH_MODE` defaults to `single`: one user id (`SINGLE_USER_ID`, default `owner`), no Clerk. `AUTH_MODE=clerk` is the hosted accounts path and is the only mode that loads Clerk.
 
 The model client is OpenAI-compatible. Leave `LLM_BASE_URL` unset to keep Together, or point it at another `/v1` server and set `LLM_API_KEY`, `LLM_MODEL`, and optionally `LLM_MODELS` (`key:id:label`). `LLM_EXTRA_BODY` is extra JSON on each chat request. With no `LLM_PRICE_IN` / `LLM_PRICE_OUT` on a non-Together host, prices are 0 and the free-budget counter stays out of the way.
 

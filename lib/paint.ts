@@ -4,11 +4,11 @@
  * never in the prompt, or the model letters it onto the picture.
  *
  * Together is the default image host. COVERS_BASE_URL / COVERS_MODEL point at
- * an OpenAI-compatible images endpoint, and FEATURE_COVERS=0 turns painting off.
+ * an OpenAI-compatible images endpoint. FEATURE_COVERS set to 0, false, off, or no turns painting off.
  */
 
 import { TOPIC, type TopicKey } from "./library";
-import { APP_UA, isTogetherBase, llmSettings } from "./llm";
+import { APP_UA, flagDisabled, isTogetherBase, llmSettings } from "./llm";
 
 const SIZE = 640;
 /**
@@ -26,7 +26,7 @@ export type CoverSettings =
   | { enabled: true; url: string; model: string; apiKey: string; together: boolean; provider: string };
 
 export function coverSettings(env: Env = process.env): CoverSettings {
-  if (env.FEATURE_COVERS === "0") return { enabled: false, reason: "Painted covers are turned off." };
+  if (flagDisabled(env.FEATURE_COVERS)) return { enabled: false, reason: "Painted covers are turned off." };
   const llm = llmSettings(env);
   const base = (env.COVERS_BASE_URL?.trim() || llm.baseUrl).replace(/\/+$/, "");
   const together = isTogetherBase(base);

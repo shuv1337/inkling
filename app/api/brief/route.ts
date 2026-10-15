@@ -1,3 +1,4 @@
+import { hasLlmConfig } from "@/lib/llm";
 import { BRIEF_TASK, systemFor, type DocPayload } from "@/lib/prompts";
 import { completeJSON, DEFAULT_MODEL, isModelKey } from "@/lib/together";
 import { undash, type BriefData } from "@/lib/article";
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   // A gloss of the whole text spends from the same free allowance.
   let free: Awaited<ReturnType<typeof checkFree>> | null = null;
   if (!apiKey) {
-    if (!process.env.TOGETHER_API_KEY) return needKey(null);
+    if (!hasLlmConfig()) return needKey(null);
     free = await checkFree(req);
     if (!free.ok) return needKey(free);
   }

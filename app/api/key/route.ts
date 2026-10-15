@@ -1,4 +1,4 @@
-import { APP_UA, llmSettings, modelsUrl } from "@/lib/llm";
+import { APP_UA, hasLlmConfig, modelsUrl, skipKeyCheck } from "@/lib/llm";
 import { peekFree } from "@/lib/quota";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   } catch {}
   const key = body.apiKey?.trim();
   if (!key) return Response.json({ ok: false });
-  if (process.env.LLM_SKIP_KEY_CHECK === "1") return Response.json({ ok: true });
+  if (skipKeyCheck()) return Response.json({ ok: true });
   try {
     const res = await fetch(modelsUrl(), {
       headers: { Authorization: `Bearer ${key}`, "User-Agent": APP_UA },
@@ -26,6 +26,6 @@ export async function POST(req: Request) {
 
 /** Whether there is a shared key, and how much of today's free allowance is left on it. */
 export async function GET(req: Request) {
-  const house = Boolean(llmSettings().apiKey);
+  const house = hasLlmConfig();
   return Response.json({ house, free: house ? await peekFree(req) : null });
 }

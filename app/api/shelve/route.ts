@@ -1,3 +1,4 @@
+import { hasLlmConfig } from "@/lib/llm";
 import { chargeFree, checkFree, needKey } from "@/lib/quota";
 import { classify, type ShelveInput } from "@/lib/shelve";
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   const apiKey = body.apiKey?.trim() || undefined;
   let free: Awaited<ReturnType<typeof checkFree>> | null = null;
   if (!apiKey) {
-    if (!process.env.TOGETHER_API_KEY) return needKey(null);
+    if (!hasLlmConfig()) return needKey(null);
     // A whole shelf may be sorted at once on a first visit, so the burst is generous.
     free = await checkFree(req, 90);
     if (!free.ok) return needKey(free);

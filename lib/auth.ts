@@ -25,7 +25,10 @@ export async function getUserId(): Promise<string | null> {
   }
 }
 
-/** When ALLOWED_TS_USERS is set, only those Tailscale logins may pass. Unset allows everyone (local use). */
+/**
+ * Tailscale logins listed in ALLOWED_TS_USERS may pass.
+ * Unset or empty lets anyone who can reach the server through, including everyone on the tailnet.
+ */
 export function tailscaleAllowed(login: string | null): boolean {
   const allow = (process.env.ALLOWED_TS_USERS ?? "")
     .split(",")

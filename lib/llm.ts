@@ -31,6 +31,30 @@ export type LlmSettings = {
   provider: string;
 };
 
+const OFF_VALUES = new Set(["0", "false", "off", "no"]);
+
+/** True for 0, false, off, or no, in any case. An empty or unset value is not off. */
+export function flagDisabled(value: string | undefined): boolean {
+  if (value == null) return false;
+  return OFF_VALUES.has(value.trim().toLowerCase());
+}
+
+/** LLM_SKIP_KEY_CHECK is on for any value other than empty or an off value. */
+export function skipKeyCheck(env: Env = process.env): boolean {
+  const raw = env.LLM_SKIP_KEY_CHECK;
+  if (raw == null || raw.trim() === "") return false;
+  return !flagDisabled(raw);
+}
+
+/**
+ * The server can answer without a key pasted in the browser: LLM_API_KEY,
+ * TOGETHER_API_KEY, or an explicit LLM_BASE_URL with LLM_SKIP_KEY_CHECK.
+ */
+export function hasLlmConfig(env: Env = process.env): boolean {
+  if (env.LLM_API_KEY?.trim() || env.TOGETHER_API_KEY?.trim()) return true;
+  return Boolean(env.LLM_BASE_URL?.trim()) && skipKeyCheck(env);
+}
+
 export function llmSettings(env: Env = process.env): LlmSettings {
   const baseUrl = (env.LLM_BASE_URL?.trim() || TOGETHER_API_BASE).replace(/\/+$/, "");
   const together = isTogetherBase(baseUrl);
@@ -88,7 +112,8 @@ export type BuiltChat =
 export function buildChatRequest(req: ChatRequestInput, env: Env = process.env): BuiltChat {
   const settings = llmSettings(env);
   const apiKey = req.apiKey?.trim() || settings.apiKey;
-  if (!apiKey) return { ok: false, error: "No API key. Set LLM_API_KEY or TOGETHER_API_KEY, or add your own key." };
+  const open = !apiKey && Boolean(env.LLM_BASE_URL?.trim()) && skipKeyCheck(env);
+  if (!apiKey && !open) return { ok: false, error: "No API key. Set LLM_API_KEY or TOGETHER_API_KEY, or add your own key." };
   const extras = chatExtras(env, Boolean(req.thinking));
   if (!extras.ok) return extras;
   const { entry } = resolveModel(req.model, env);
@@ -113,8 +138,8 @@ export function buildChatRequest(req: ChatRequestInput, env: Env = process.env):
     url: `${settings.baseUrl}/chat/completions`,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
       "User-Agent": APP_UA,
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
     body,
     entry,
@@ -145,7 +170,7 @@ export type VisionSettings =
 /** Scanned-page reading. On Together the known vision models are the default; elsewhere set VISION_MODEL, or turn it off. */
 export function visionSettings(env: Env = process.env): VisionSettings {
   const settings = llmSettings(env);
-  if (env.FEATURE_VISION === "0") return { enabled: false, reason: "Scanned PDF reading is turned off." };
+  if (flagDisabled(env.FEATURE_VISION)) return { enabled: false, reason: "Scanned PDF reading is turned off." };
   const model = env.VISION_MODEL?.trim() || (settings.together ? "Qwen/Qwen3.8-Flash" : "");
   const layoutModel = env.VISION_LAYOUT_MODEL?.trim() || (settings.together ? "Qwen/Qwen3.5-9B" : model);
   if (!model) return { enabled: false, reason: "Scanned PDF reading needs VISION_MODEL, or set FEATURE_VISION=0." };

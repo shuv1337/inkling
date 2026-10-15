@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildChatRequest, TOGETHER_API_BASE } from "../lib/llm";
+import { buildChatRequest, flagDisabled, hasLlmConfig, TOGETHER_API_BASE, visionSettings } from "../lib/llm";
+import { coverSettings } from "../lib/paint";
 import { streamChat } from "../lib/together";
 
 const empty = {
@@ -128,4 +129,50 @@ test("streamChat posts the built request", async () => {
     globalThis.fetch = original;
     process.env = prev;
   }
+});
+
+const blank = {
+  LLM_API_KEY: undefined,
+  TOGETHER_API_KEY: undefined,
+  LLM_BASE_URL: undefined,
+  LLM_SKIP_KEY_CHECK: undefined,
+};
+
+test("hasLlmConfig accepts LLM_API_KEY, TOGETHER_API_KEY, or a base URL with the key check skipped", () => {
+  assert.equal(hasLlmConfig(blank), false);
+  assert.equal(hasLlmConfig({ ...blank, LLM_API_KEY: "  " }), false);
+  assert.equal(hasLlmConfig({ ...blank, LLM_API_KEY: "sk-local" }), true);
+  assert.equal(hasLlmConfig({ ...blank, TOGETHER_API_KEY: "tg-test" }), true);
+  assert.equal(hasLlmConfig({ ...blank, LLM_BASE_URL: "http://llm.internal/v1" }), false);
+  assert.equal(hasLlmConfig({ ...blank, LLM_BASE_URL: "http://llm.internal/v1", LLM_SKIP_KEY_CHECK: "1" }), true);
+  assert.equal(hasLlmConfig({ ...blank, LLM_BASE_URL: "http://llm.internal/v1", LLM_SKIP_KEY_CHECK: "true" }), true);
+  for (const off of ["0", "false", "off", "no", "OFF"]) {
+    assert.equal(hasLlmConfig({ ...blank, LLM_BASE_URL: "http://llm.internal/v1", LLM_SKIP_KEY_CHECK: off }), false);
+  }
+});
+
+test("a skipped key check on an explicit base URL sends no Authorization header", () => {
+  const built = buildChatRequest(
+    { model: "flash", messages: [] },
+    { ...blank, LLM_BASE_URL: "http://llm.internal/v1", LLM_SKIP_KEY_CHECK: "yes", LLM_MODEL: "local-model" }
+  );
+  assert.equal(built.ok, true);
+  if (!built.ok) return;
+  assert.equal(built.url, "http://llm.internal/v1/chat/completions");
+  assert.equal(built.headers.Authorization, undefined);
+  assert.equal(built.body.model, "local-model");
+});
+
+test("feature flags treat 0, false, off, and no as disabled", () => {
+  assert.equal(flagDisabled(undefined), false);
+  assert.equal(flagDisabled(""), false);
+  assert.equal(flagDisabled("1"), false);
+  assert.equal(flagDisabled("yes"), false);
+  for (const value of ["0", "false", "FALSE", "off", "No", " no "]) {
+    assert.equal(flagDisabled(value), true);
+    assert.equal(coverSettings({ FEATURE_COVERS: value }).enabled, false);
+    assert.equal(visionSettings({ FEATURE_VISION: value }).enabled, false);
+  }
+  assert.equal(coverSettings({ FEATURE_COVERS: "" }).enabled, true);
+  assert.equal(visionSettings({ FEATURE_VISION: "1" }).enabled, true);
 });
