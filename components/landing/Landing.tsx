@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAccount } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TopBar } from "@/components/ui/TopBar";
@@ -22,8 +22,8 @@ import { ShelfSheet, type ShelfItem } from "./ShelfSheet";
 export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boolean }) {
   const router = useRouter();
   // Known on the server at load, so a signed-in reader never sees the demo flash; then live, for a sign-in from this page.
-  const { isLoaded, isSignedIn } = useAuth();
-  const signedIn = isLoaded ? Boolean(isSignedIn) : signedInAtLoad;
+  const account = useAccount();
+  const signedIn = account.loaded ? account.signedIn : signedInAtLoad;
   const hydrate = useStore((s) => s.hydrate);
   const hydrated = useStore((s) => s.hydrated);
   const library = useStore((s) => s.library);

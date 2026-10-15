@@ -4,8 +4,9 @@ import { Atkinson_Hyperlegible_Next, Literata, Newsreader, Schibsted_Grotesk } f
 import { BOOT_SCRIPT } from "@/lib/settings";
 import "./globals.css";
 import { Tooltips } from "@/components/ui/Tooltips";
-import { ClerkProvider } from "@clerk/nextjs";
 import { SyncAgent } from "@/components/account/SyncAgent";
+import { AccountProvider } from "@/lib/auth-client";
+import { authMode, singleUserId } from "@/lib/auth";
 import { OG_IMAGE, SITE_URL } from "@/lib/brand";
 
 const serif = Newsreader({
@@ -43,6 +44,11 @@ const legible = Atkinson_Hyperlegible_Next({
 
 const DESCRIPTION = "Highlight any line and ask it anything. An open model writes the answer in the margin, beside the words, citing the paragraphs it used.";
 
+async function ClerkShell({ children }: { children: React.ReactNode }) {
+  const { ClerkRoot } = await import("@/components/account/ClerkRoot");
+  return <ClerkRoot>{children}</ClerkRoot>;
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "Gloss", template: "%s" },
@@ -59,33 +65,27 @@ export const viewport: Viewport = {
   ],
 };
 
-/** Clerk's sign-in and account screens, in the page's own ink and paper, in every theme. */
-const CLERK_APPEARANCE = {
-  variables: {
-    colorPrimary: "var(--ink)",
-    colorBackground: "var(--bg-raised)",
-    colorForeground: "var(--ink)",
-    colorMutedForeground: "var(--ink-3)",
-    colorInput: "var(--bg)",
-    colorInputForeground: "var(--ink)",
-    colorBorder: "var(--rule-strong)",
-    colorNeutral: "var(--ink)",
-    fontFamily: "var(--font-sans)",
-    borderRadius: "12px",
-  },
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Clerk is optional. Importing it in single-user mode makes the app demand keys it does not have.
+  const shell =
+    authMode() === "clerk" ? (
+      <ClerkShell>
+        {children}
+        <SyncAgent />
+      </ClerkShell>
+    ) : (
+      <AccountProvider value={{ loaded: true, signedIn: true, userId: singleUserId(), name: null, firstName: null, mode: "single" }}>
+        {children}
+        <SyncAgent />
+      </AccountProvider>
+    );
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${book.variable} ${legible.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
       </head>
       <body>
-        <ClerkProvider appearance={CLERK_APPEARANCE}>
-          {children}
-          <SyncAgent />
-        </ClerkProvider>
+        {shell}
         <Tooltips />
         {/* Plausible: cookieless page views, from the production site only, so previews and local runs never count. */}
         {process.env.VERCEL_ENV === "production" && <Script defer data-domain="usegloss.io" src="https://plausible.io/js/script.js" strategy="afterInteractive" />}

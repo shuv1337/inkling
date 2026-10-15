@@ -1,6 +1,7 @@
 "use client";
 
-import { Show, SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@/components/account/SignIn";
+import { SignedOut } from "@/lib/auth-client";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, RotateCcw } from "lucide-react";
 import { fetchBrief, openKeyMenu } from "@/lib/ask";
@@ -53,13 +54,13 @@ export function Brief() {
             <button type="button" onClick={openKeyMenu} className="font-medium text-ink underline decoration-rule-strong underline-offset-4">
               Add your API key
             </button>
-            <Show when="signed-out">
-              <SignInButton mode="modal">
+            <SignedOut>
+              <SignInButton>
                 <button type="button" className="font-medium text-ink underline decoration-rule-strong underline-offset-4">
                   Sign in
                 </button>
               </SignInButton>
-            </Show>
+            </SignedOut>
           </>
         )}
         <button type="button" onClick={() => fetchBrief(ix)} className="font-medium text-ink underline decoration-rule-strong underline-offset-4">

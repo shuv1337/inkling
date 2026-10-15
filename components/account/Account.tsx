@@ -1,24 +1,24 @@
 "use client";
 
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { barBtn } from "@/components/ui/Popover";
+import { SignedOut, useAccount } from "@/lib/auth-client";
+import { SignInButton } from "./SignIn";
+import { UserMenu } from "./UserMenu";
 
-/** Signed out: a quiet "Sign in". Signed in: the avatar, with Clerk's account menu. */
+/** Signed out: a quiet "Sign in". Signed in with Clerk: the avatar. Single-user mode has neither. */
 export function Account() {
+  const { mode, signedIn, loaded } = useAccount();
+  if (!loaded) return null;
   return (
     <>
-      <Show when="signed-out">
-        <SignInButton mode="modal">
+      <SignedOut>
+        <SignInButton>
           <button type="button" className={`${barBtn} !px-3 whitespace-nowrap`} data-tip="Keep your highlights and notes on every device">
             Sign in
           </button>
         </SignInButton>
-      </Show>
-      <Show when="signed-in">
-        <span className="grid size-9 place-items-center">
-          <UserButton appearance={{ elements: { avatarBox: "size-7" } }} />
-        </span>
-      </Show>
+      </SignedOut>
+      {signedIn && mode === "clerk" && <UserMenu />}
     </>
   );
 }

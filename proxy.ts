@@ -1,7 +1,17 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { tailscaleAllowed } from "@/lib/auth";
 
-// Signing in is optional: nothing is protected here. Routes that need a user check auth() themselves.
-export default clerkMiddleware();
+// Single-user mode does not load Clerk. Set AUTH_MODE=clerk to keep accounts.
+export default async function proxy(req: NextRequest, event: NextFetchEvent) {
+  if (process.env.AUTH_MODE === "clerk") {
+    const { clerkMiddleware } = await import("@clerk/nextjs/server");
+    return clerkMiddleware()(req, event);
+  }
+  if (!tailscaleAllowed(req.headers.get("tailscale-user-login"))) {
+    return new NextResponse("This Gloss is only for its owner.", { status: 403 });
+  }
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

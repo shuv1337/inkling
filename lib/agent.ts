@@ -15,3 +15,12 @@ export function makeToken(): { id: string; token: string; hash: string } {
 }
 
 export const looksLikeToken = (s: string | null | undefined): s is string => typeof s === "string" && s.startsWith(PREFIX) && s.length > 20 && s.length < 80;
+
+export type TokenScope = "read" | "write";
+
+/** `read`, `write`, or both. Anything else is dropped. Empty means both, the historical default. */
+export function normalizeScopes(value: unknown): TokenScope[] {
+  const parts = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,\s]+/) : [];
+  const scopes = [...new Set(parts.map((part) => String(part).trim()).filter((part): part is TokenScope => part === "read" || part === "write"))];
+  return scopes.length ? scopes : ["read", "write"];
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { Show, SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@/components/account/SignIn";
+import { SignedOut } from "@/lib/auth-client";
 import { forwardRef, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowUp, Check, ChevronsDownUp, Copy, CornerDownRight, RotateCcw, Square, Trash2 } from "lucide-react";
 import { ACTIONS } from "@/lib/actions";
@@ -54,13 +55,13 @@ function KeyButton() {
       >
         Add your API key
       </button>
-      <Show when="signed-out">
-        <SignInButton mode="modal">
+      <SignedOut>
+        <SignInButton>
           <button type="button" className="inline-flex h-8 items-center rounded-full border border-rule px-3.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-rule-strong hover:text-ink">
             Sign in
           </button>
         </SignInButton>
-      </Show>
+      </SignedOut>
     </span>
   );
 }

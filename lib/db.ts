@@ -5,6 +5,9 @@
  */
 
 import postgres, { type Sql } from "postgres";
+import type { TokenScope } from "./agent";
+
+export type { TokenScope };
 
 export type Row = postgres.Row;
 
@@ -129,15 +132,27 @@ export async function loadCover(userId: string, id: string): Promise<Uint8Array 
 
 /* ---------- agent tokens ---------- */
 
-export type AgentToken = { id: string; label: string; createdAt: string; lastUsedAt: string | null };
+export type AgentToken = { id: string; label: string; scopes: TokenScope[]; createdAt: string; lastUsedAt: string | null };
 
-export async function createToken(userId: string, id: string, hash: string, label: string): Promise<void> {
-  await db().query("insert into agent_tokens (id, user_id, hash, label) values ($1, $2, $3, $4)", [id, userId, hash, label]);
+function scopesOf(value: unknown): TokenScope[] {
+  const list = Array.isArray(value) ? value : [];
+  const scopes = list.filter((s): s is TokenScope => s === "read" || s === "write");
+  return scopes.length ? scopes : ["read", "write"];
+}
+
+export async function createToken(userId: string, id: string, hash: string, label: string, scopes: TokenScope[] = ["read", "write"]): Promise<void> {
+  await db().query("insert into agent_tokens (id, user_id, hash, label, scopes) values ($1, $2, $3, $4, $5::text[])", [id, userId, hash, label, scopes]);
 }
 
 export async function listTokens(userId: string): Promise<AgentToken[]> {
-  const rows = await db().query("select id, label, created_at, last_used_at from agent_tokens where user_id = $1 and not revoked order by created_at desc", [userId]);
-  return rows.map((r) => ({ id: String(r.id), label: String(r.label), createdAt: new Date(r.created_at as string | Date).toISOString(), lastUsedAt: r.last_used_at ? new Date(r.last_used_at as string | Date).toISOString() : null }));
+  const rows = await db().query("select id, label, scopes, created_at, last_used_at from agent_tokens where user_id = $1 and not revoked order by created_at desc", [userId]);
+  return rows.map((r) => ({
+    id: String(r.id),
+    label: String(r.label),
+    scopes: scopesOf(r.scopes),
+    createdAt: new Date(r.created_at as string | Date).toISOString(),
+    lastUsedAt: r.last_used_at ? new Date(r.last_used_at as string | Date).toISOString() : null,
+  }));
 }
 
 export async function revokeToken(userId: string, id: string): Promise<boolean> {
@@ -146,9 +161,9 @@ export async function revokeToken(userId: string, id: string): Promise<boolean> 
 }
 
 /** The reader a token belongs to, noting that it was used. Null for an unknown or revoked token. */
-export async function tokenUser(hash: string): Promise<{ userId: string; label: string } | null> {
-  const rows = await db().query("update agent_tokens set last_used_at = now() where hash = $1 and not revoked returning user_id, label", [hash]);
-  return rows.length ? { userId: String(rows[0].user_id), label: String(rows[0].label ?? "") } : null;
+export async function tokenUser(hash: string): Promise<{ userId: string; label: string; scopes: TokenScope[] } | null> {
+  const rows = await db().query("update agent_tokens set last_used_at = now() where hash = $1 and not revoked returning user_id, label, scopes", [hash]);
+  return rows.length ? { userId: String(rows[0].user_id), label: String(rows[0].label ?? ""), scopes: scopesOf(rows[0].scopes) } : null;
 }
 
 /* ---------- the library, for an agent ---------- */

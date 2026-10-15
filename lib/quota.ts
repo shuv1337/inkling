@@ -11,7 +11,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { auth } from "@clerk/nextjs/server";
+import { authMode, getUserId } from "./auth";
 import { db } from "./db";
 import { allow, clientId } from "./ratelimit";
 
@@ -24,9 +24,10 @@ const ALL = "free:all";
 export type FreeState = { ok: boolean; left: number; signedIn: boolean; subject: string; reason?: "reader" | "everyone" | "burst" };
 
 async function who(req: Request) {
+  if (authMode() === "single") return { subject: `free:user:${await getUserId()}`, limit: FREE_USD.user, signedIn: true };
   let userId: string | null = null;
   try {
-    userId = (await auth()).userId;
+    userId = await getUserId();
   } catch {}
   if (userId) return { subject: `free:user:${userId}`, limit: FREE_USD.user, signedIn: true };
   const ip = createHash("sha256").update(`gloss:${clientId(req)}`).digest("hex").slice(0, 32);
@@ -71,7 +72,7 @@ export async function checkFreeUser(userId: string, burst = 60): Promise<FreeSta
 
 async function check(w: { subject: string; limit: number; signedIn: boolean }, burst: number): Promise<FreeState> {
   // One reader on their own server is not on the shared-key budget.
-  if (process.env.AUTH_MODE === "single") return { ok: true, left: 1, signedIn: true, subject: "free:single" };
+  if (authMode() === "single") return { ok: true, left: 1, signedIn: true, subject: "free:single" };
   // A burst guard, so a script cannot fire many requests before their costs land.
   if (!allow(`burst:${w.subject}`, burst, 60_000)) return { ok: false, left: 1, signedIn: w.signedIn, subject: w.subject, reason: "burst" };
   const s = await spent(w.subject);
@@ -102,7 +103,7 @@ export async function chargeFree(subject: string, usd: number) {
 
 /** Today's allowance without using any of it, for the key menu. */
 export async function peekFree(req: Request): Promise<{ left: number; signedIn: boolean }> {
-  if (process.env.AUTH_MODE === "single") return { left: 1, signedIn: true };
+  if (authMode() === "single") return { left: 1, signedIn: true };
   const w = await who(req);
   const s = await spent(w.subject);
   return { left: s.all >= FREE_USD_ALL ? 0 : Math.max(0, 1 - s.mine / w.limit), signedIn: w.signedIn };

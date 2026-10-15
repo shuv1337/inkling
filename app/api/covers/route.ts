@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/auth";
 import { saveCover } from "@/lib/db";
 import { isTopic } from "@/lib/library";
 import { COVER_USD, coverSettings, paintCover } from "@/lib/paint";
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   if (!r.ok) return Response.json({ error: r.error }, { status: 502 });
   if (free) await chargeFree(free.subject, COVER_USD);
 
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (userId && process.env.DATABASE_URL) await saveCover(userId, id, r.jpeg).catch(() => {});
   return new Response(new Blob([r.jpeg as Uint8Array<ArrayBuffer>]), { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, no-store" } });
 }

@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/auth";
 import { isCollection, pullRows, pushRows, type Collection, type PushRow } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ type InRow = { id: string; articleId: string; data: unknown; deleted?: boolean; 
  * time from /api/articles/[id], so a big shelf never makes a huge response.
  */
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) return Response.json({ error: "Sign in to sync." }, { status: 401 });
   const raw = new URL(req.url).searchParams.get("since");
   const since = raw && !Number.isNaN(Date.parse(raw)) ? new Date(raw).toISOString() : "1970-01-01T00:00:00Z";
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
 /** Push: upsert the rows a device changed. */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) return Response.json({ error: "Sign in to sync." }, { status: 401 });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return Response.json({ error: "Too large." }, { status: 413 });
 

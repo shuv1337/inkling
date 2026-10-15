@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
-import { SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@/components/account/SignIn";
 import { tidyTitle } from "@/lib/article";
 import { SAMPLES } from "@/lib/samples";
 import { useStore } from "@/lib/store";
@@ -23,7 +23,7 @@ function SignInLine({ children }: { children: string }) {
   return (
     <>
       {children}{" "}
-      <SignInButton mode="modal">
+      <SignInButton>
         <button type="button" className="font-medium text-ink-2 underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink">
           Sign in
         </button>

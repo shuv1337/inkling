@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@/components/account/SignIn";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, BookmarkPlus, Check, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
@@ -292,7 +292,7 @@ function Agent({ signedIn }: { signedIn: boolean }) {
       <div className="mt-5">
         <AgentIntro />
         <p className="mt-4 text-[13.5px] text-ink-2">An agent saves to the library in your account, so it needs you signed in.</p>
-        <SignInButton mode="modal">
+        <SignInButton>
           <button type="button" className="add-btn mt-4">
             Sign in to connect
           </button>
