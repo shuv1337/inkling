@@ -8,7 +8,6 @@ import { displayArticle, isHeading, readingMinutes, titleClass, type Article } f
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
 import { SAMPLE_QUESTIONS } from "@/lib/samples";
 import { fetchBrief, llmStatus } from "@/lib/ask";
-import { BRAND } from "@/lib/brand";
 import { indexArticle } from "@/lib/doc";
 import { fetchText } from "@/lib/sync";
 import { loadDoc, useGlosses, useHighlights, useStore, type Anchor } from "@/lib/store";
@@ -562,14 +561,6 @@ function ReaderInner({ article }: { article: Article }) {
                 {article.source && <p>From {article.source}.</p>}
                 {modelHost === "chatgpt" ? (
                   <p className="mt-1">Glosses use your ChatGPT plan.</p>
-                ) : modelHost === "compat" ? (
-                  <p className="mt-1">
-                    Glosses are powered by DeepSeek V4.1 Flash, served by{" "}
-                    <a href={BRAND.togetherUrl} target="_blank" rel="noopener noreferrer" className="text-ink-2 underline decoration-rule-strong underline-offset-4 hover:text-ink">
-                      Together AI
-                    </a>
-                    .
-                  </p>
                 ) : null}
                 <div className="mt-6 flex flex-wrap gap-2">
                   <button type="button" onClick={() => setUI({ notebookOpen: true })} className="h-9 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-2 hover:border-rule-strong hover:text-ink">

@@ -4,7 +4,7 @@
 </a>
 
 <p align="center">
-  An open source AI reader for articles and PDFs. Select any line, ask a question, and get a cited answer in the margin. Powered by Together.ai.
+  An open source AI reader for articles and PDFs. Select any line, ask a question, and get a cited answer in the margin.
 </p>
 
 ## Tech stack
