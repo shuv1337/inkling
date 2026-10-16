@@ -111,6 +111,11 @@ export function buildResponsesRequest(req: ResponsesRequest): { url: string; bod
     input.push({ role: message.role, content: contentParts(message.content ?? "") });
   }
 
+  // JSON mode checks input messages, not the separate instructions field.
+  // Shelving keeps its schema in system instructions, so explicitly request
+  // JSON in the input as well. Preserve the original text and image parts.
+  if (req.json) input.unshift({ role: "user", content: "Return a JSON object in the format requested by the instructions." });
+
   const body: Record<string, unknown> = {
     model: req.model,
     input,

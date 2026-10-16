@@ -5,7 +5,8 @@ Inkling is a fork of [Gloss](https://github.com/Nutlope/gloss), by Hassan El Mgh
 - Upstream: `https://github.com/Nutlope/gloss`, remote `upstream`
 - Fork: `https://github.com/shuv1337/gloss`, remote `origin`
 - Forked from upstream `95373eb` (2026-10-15, "Point the clone URL at Nutlope/gloss")
-- Fork trunk: `selfhost`. `main` tracks `upstream/main` and carries no fork commits.
+- Fork trunk and GitHub default: `selfhost`. `main` tracks `upstream/main` and carries no fork commits.
+- Application checks are manual for now; CI is deliberately deferred.
 
 ## License
 
@@ -57,4 +58,4 @@ Upstream merges are expected. Fetch `upstream`, fast-forward `main`, then merge 
 
 ## Deployment
 
-See "Self-host" in the README. On shuvdev, after a change: `npm run build`, then `systemctl --user restart gloss.service`.
+See "Self-host" in the README and [deployment and recovery](deploy/README.md). Build in isolation, then stop the service before replacing its `.next` output. Preserve the previous build until the deployed health checks pass.

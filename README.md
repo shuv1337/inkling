@@ -9,25 +9,32 @@
 
 Inkling is a fork of [Gloss](https://github.com/Nutlope/gloss) by Hassan El Mghari (Nutlope) and contributors, run for one reader on a machine they control. [FORK.md](./FORK.md) lists what changed, which old names are kept on purpose, and how upstream is merged.
 
-## Tech stack
+## Stack and setup
 
-- [DeepSeek V4.1 Flash](https://togetherai.link/?utm_source=gloss&utm_medium=referral&utm_campaign=example-app) and Kimi K3 for the LLMs
-- [Together AI](https://togetherai.link/?utm_source=gloss&utm_medium=referral&utm_campaign=example-app) for LLM inference
-- [Exa](https://exa.ai) for web search
-- [LiteParse](https://github.com/run-llama/liteparse) for in-browser PDF parsing, with Qwen on Together for scanned pages
-- [Clerk](https://clerk.com) for optional auth and [Neon](https://neon.tech) for syncing your library
-- Next.js app router with Tailwind
+Inkling uses Next.js and Tailwind, local Postgres, and browser-side [LiteParse](https://github.com/run-llama/liteparse) for PDFs. It runs for one reader behind Tailscale. Choose either your ChatGPT plan or an OpenAI-compatible model provider. Together remains supported; Clerk is optional for deployments that deliberately use hosted accounts.
 
-## Cloning & running
+```bash
+git clone --branch selfhost git@github.com:shuv1337/gloss.git
+cd gloss
+cp .env.example .env.local
+npm ci
+```
 
-1. Clone the repo: `git clone https://github.com/shuv1337/gloss`
-2. Create a `.env.local` file (use `.env.example` for reference) and add your API keys:
-   - **[Together AI API key](https://togetherai.link/?utm_source=gloss&utm_medium=referral&utm_campaign=example-app)**: `TOGETHER_API_KEY=`
-   - **Database URL** from [Neon](https://neon.tech): `DATABASE_URL=`
-   - **Clerk keys** from [Clerk](https://clerk.com): `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=` and `CLERK_SECRET_KEY=`
-   - **Exa API key** (optional, for web search): `EXA_API_KEY=`
-3. Run `npm install` and `npm run db:migrate` to install dependencies and create the tables
-4. Run `npm run dev` and open http://localhost:3100
+Edit `.env.local` before continuing:
+
+- Set `POSTGRES_PASSWORD` and the matching password in `DATABASE_URL` for local Postgres. URL-encode special characters in the database URL.
+- Keep `AUTH_MODE=single`. Set `ALLOWED_TS_USERS` to the reader's Tailscale login and `NEXT_PUBLIC_SITE_URL` to the tailnet HTTPS origin before building.
+- For ChatGPT, set `LLM_PROVIDER=chatgpt`, `AUTH_ENCRYPTION_KEY`, and `FEATURE_COVERS=0`, then follow [Sign in with ChatGPT](#sign-in-with-chatgpt) after migrating the database.
+- For compatible inference, set `LLM_PROVIDER=compat`, `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`. An unset base URL uses Together with `TOGETHER_API_KEY`.
+- Set `TTS_PROVIDER=off` or configure a speech server below. Exa search and LlamaParse are optional, separately billed integrations.
+
+```bash
+npm run db:up
+npm run db:migrate
+npm run dev -- -H 127.0.0.1
+```
+
+Local development works at http://127.0.0.1:3100 when the allowlist is empty. With an allowlist configured, use Tailscale Serve so the app receives the authenticated identity header. Production refuses browser and owner API requests if the allowlist is empty. See [deployment and recovery](deploy/README.md) for the service, routing, backups, validation, and upgrade procedure.
 
 ## Read aloud
 
@@ -41,7 +48,7 @@ The reader still splits a long text at sentence ends before each request, and th
 
 This fork runs for one reader, on Postgres on the same machine, behind Tailscale. Copy `.env.example` to `.env.local`. Nothing in `.env.local` is committed.
 
-**Set `ALLOWED_TS_USERS` before serving.** It is the comma-separated list of Tailscale logins allowed to open Inkling. Leave it unset and anyone on the tailnet can use the app.
+**Set `ALLOWED_TS_USERS` before serving.** It is the comma-separated list of Tailscale logins allowed to open Inkling. Production denies browser and owner API access when it is unset. Only development permits an empty allowlist.
 
 ```bash
 npm install
@@ -56,7 +63,7 @@ The model client is OpenAI-compatible unless `LLM_PROVIDER=chatgpt`. Leave `LLM_
 
 `TTS_PROVIDER=openai-compatible` with `TTS_BASE_URL` pointed at a Kokoro-FastAPI `/v1` (its own default listen address is `http://127.0.0.1:8880/v1`) speaks with `POST /v1/audio/speech`. No host is built in. `TTS_PROVIDER=off` hides Read aloud.
 
-An agent connects with a token from `npm run token -- --label "name" --scope read,write`. The token is printed once. `read` can list, search, and read texts, highlights, notes, and briefs. `write` can save URLs and text, and add a highlight or a note. `npm run mcp:smoke` checks that path against the local database.
+An agent connects with a token from `npm run token -- --label "name" --scope read,write`. The token is printed once. `read` can list, search, and read texts, highlights, notes, and briefs. `write` can save URLs and text, and add a highlight or a note. `npm run mcp:smoke` checks that path against a database using fixture users; run it against an isolated test database. The exact `/mcp` and `/mcp/<token>` routes authenticate independently with scoped agent tokens, including from tagged tailnet hosts without a user-login header. Agent tokens never grant access to owner APIs such as `/api/agent-tokens`. Prefer the Authorization header over tokens in URLs.
 
 A link to one post on X or Twitter (`/status/<id>` on x.com or twitter.com) is fetched as the post. `X_FETCH` defaults to `fx,api`: fxtwitter, then the X API if `X_BEARER_TOKEN` is set. Profiles and other social sites are still refused. `node --env-file-if-exists=.env.local --import tsx scripts/x-smoke.mjs` tries one live post and skips itself if the network is down.
 
@@ -73,7 +80,7 @@ On shuvdev, outside this repo:
 
 Painted covers do not run on the plan. Image generation is not offered to this flow. Set `FEATURE_COVERS=0`. Inkling does not add an image provider or a Together key for the ChatGPT path. There is no Claude path.
 
-This is the open-source direct flow for one reader on a machine they control. It is not a fit for a public site, and it is not a way to share one ChatGPT plan with other people.
+This is the direct flow for one reader on a machine they control. It is not a fit for a public site, and it is not a way to share one ChatGPT plan with other people.
 
 ### One-time login
 

@@ -376,6 +376,18 @@ test("a Responses request is streamed, stored off, and drops plan-rejected field
   assert.equal(built.body.tool_choice, "none");
 });
 
+test("JSON mode includes an input instruction even when only the system prompt mentions JSON", () => {
+  const user = "Title: Community gardens\nOpening: The garden collected rainwater.";
+  const built = buildResponsesRequest({
+    model: "gpt-6.1-sol", json: true,
+    messages: [{ role: "system", content: 'Reply with JSON only: {"topic":"..."}' }, { role: "user", content: user }],
+  });
+  const input = built.body.input as { role: string; content: string }[];
+  assert.ok(input.some((m) => m.role === "user" && /json/i.test(m.content)));
+  assert.equal(input.at(-1)?.content, user);
+  assert.deepEqual(built.body.text, { format: { type: "json_object" } });
+});
+
 test("image input is an input_image and the system text stays in instructions", () => {
   const built = buildResponsesRequest({
     model: "gpt-6.1-sol",

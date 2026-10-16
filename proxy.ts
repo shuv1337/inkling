@@ -1,5 +1,5 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
-import { tailscaleAllowed } from "@/lib/auth";
+import { isAgentRoute, tailscaleAllowed } from "@/lib/auth";
 
 // Single-user mode does not load Clerk. Set AUTH_MODE=clerk to keep accounts.
 export default async function proxy(req: NextRequest, event: NextFetchEvent) {
@@ -7,7 +7,9 @@ export default async function proxy(req: NextRequest, event: NextFetchEvent) {
     const { clerkMiddleware } = await import("@clerk/nextjs/server");
     return clerkMiddleware()(req, event);
   }
-  if (!tailscaleAllowed(req.headers.get("tailscale-user-login"))) {
+  // Tagged agent hosts have no user-login header. The MCP handler validates the
+  // token and scopes; this exception never includes account-management APIs.
+  if (!isAgentRoute(req.nextUrl.pathname) && !tailscaleAllowed(req.headers.get("tailscale-user-login"))) {
     return new NextResponse("This Inkling is only for its owner.", { status: 403 });
   }
   return NextResponse.next();

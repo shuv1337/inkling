@@ -27,13 +27,18 @@ export async function getUserId(): Promise<string | null> {
 
 /**
  * Tailscale logins listed in ALLOWED_TS_USERS may pass.
- * Unset or empty lets anyone who can reach the server through, including everyone on the tailnet.
+ * Production fails closed when the allowlist is empty. Development can run locally without Tailscale.
  */
 export function tailscaleAllowed(login: string | null): boolean {
   const allow = (process.env.ALLOWED_TS_USERS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (!allow.length) return true;
+  if (!allow.length) return process.env.NODE_ENV !== "production";
   return Boolean(login && allow.includes(login));
+}
+
+/** These exact routes authenticate with their own scoped agent token in the handler. */
+export function isAgentRoute(pathname: string): boolean {
+  return /^\/mcp(?:\/[^/]+)?\/?$/.test(pathname);
 }
