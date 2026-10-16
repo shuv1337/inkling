@@ -86,11 +86,11 @@ function ChatgptPanel({ status }: { status: LlmStatus | null }) {
       <p className="text-[13.5px] font-medium text-ink">ChatGPT</p>
       {linked ? (
         <>
-          <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Linked{email ? ` as ${email}` : ""}. Gloss refreshes access on its own.</p>
+          <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Linked{email ? ` as ${email}` : ""}. Inkling refreshes access on its own.</p>
           <p className="mt-2 text-[12.5px] leading-snug text-ink-3">{when ? `The current access token expires ${when}.` : "Expiry time is not available."}</p>
         </>
       ) : (
-        <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Not linked. On the machine that serves Gloss, run npm run chatgpt:login.</p>
+        <p className="mt-1 text-[12.5px] leading-snug text-ink-3">Not linked. On the machine that serves Inkling, run npm run chatgpt:login.</p>
       )}
     </div>
   );

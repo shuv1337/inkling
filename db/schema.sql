@@ -1,4 +1,4 @@
--- Gloss: a reader's shelf, marks and notes, mirrored from the browser.
+-- Inkling: a reader's shelf, marks and notes, mirrored from the browser.
 -- Every synced table has the same shape so one sync route serves them all:
 -- rows are owned by a Clerk user id, carry the client's object as jsonb, and
 -- are never hard-deleted by the app (a tombstone tells other devices).

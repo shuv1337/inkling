@@ -102,7 +102,7 @@ def qwen(pdf_bytes):
         "chat_template_kwargs": {"enable_thinking": False},
         "messages": [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}, {"type": "text", "text": PROMPT}]}],
     }
-    r = requests.post("https://api.together.xyz/v1/chat/completions", json=body, headers={"Authorization": f"Bearer {TOGETHER}", "User-Agent": "Gloss/0.1"}, timeout=300)
+    r = requests.post("https://api.together.xyz/v1/chat/completions", json=body, headers={"Authorization": f"Bearer {TOGETHER}", "User-Agent": "Inkling/0.1"}, timeout=300)
     j = r.json()
     if "error" in j:
         return {"markdown": "", "error": j["error"].get("message", str(j["error"])), "seconds": time.time() - t0, "usd": 0.0}

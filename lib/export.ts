@@ -62,7 +62,7 @@ export function notesMarkdown(meta: NotesMeta, glosses: Gloss[], highlights: Hig
   const by = [meta.author, meta.published].filter(Boolean).join(", ");
   if (by) lines.push(by);
   if (meta.url && !opts.frontmatter) lines.push(meta.url);
-  lines.push("", `Notes from Gloss, ${day(Date.now())}`, "");
+  lines.push("", `Notes from Inkling, ${day(Date.now())}`, "");
 
   for (const e of entries) {
     if (e.kind === "hl") {
@@ -121,7 +121,7 @@ export async function exportAll(): Promise<number> {
     let base = slugify(title);
     for (let k = 2; taken.has(base); k++) base = `${slugify(title)}-${k}`;
     taken.add(base);
-    files.push({ name: `Gloss/${base}.md`, text: notesMarkdown(meta, glosses, st.highlights[id] ?? [], place, { frontmatter: true }) });
+    files.push({ name: `Inkling/${base}.md`, text: notesMarkdown(meta, glosses, st.highlights[id] ?? [], place, { frontmatter: true }) });
   }
 
   if (files.length) download(zip(files), `gloss-notes-${new Date().toISOString().slice(0, 10)}.zip`);

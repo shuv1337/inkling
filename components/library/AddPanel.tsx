@@ -4,6 +4,7 @@ import { SignInButton } from "@/components/account/SignIn";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, BookmarkPlus, Check, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
+import { SITE_URL } from "@/lib/brand";
 import { importFromUrl, keep, looksLikeUrl } from "@/lib/import";
 import { normalizeUrl } from "@/lib/links";
 import { useStore } from "@/lib/store";
@@ -14,7 +15,7 @@ export type AddTab = "links" | "agent";
 
 /**
  * Adding to the library: paste links (one or many), or connect an agent that
- * saves to it through the Gloss MCP server.
+ * saves to it through the Inkling MCP server.
  */
 export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab: (t: AddTab) => void; onClose: () => void; signedIn: boolean }) {
   useEffect(() => {
@@ -147,7 +148,7 @@ function Links() {
     <div className="mt-5">
       <p className="text-[19px] font-serif leading-tight text-ink">Save links to your library</p>
       <p className="mt-1 text-[13px] text-ink-3">
-        One or many, a line each. Gloss reads each page in and sorts it onto a topic. PDFs work too. Leaving Pocket, Instapaper or Raindrop?{" "}
+        One or many, a line each. Inkling reads each page in and sorts it onto a topic. PDFs work too. Leaving Pocket, Instapaper or Raindrop?{" "}
         <button type="button" onClick={() => fileRef.current?.click()} className="text-ink-2 underline decoration-rule-strong underline-offset-2 hover:text-ink">
           Drop its export here
         </button>
@@ -224,13 +225,13 @@ function Links() {
 }
 
 /**
- * Bookmarklets: one click on any page opens it in Gloss, in a new tab, to read now
+ * Bookmarklets: one click on any page opens it in Inkling, in a new tab, to read now
  * or to shelve for later (`/?url=` and `/?save=` on the home page).
  */
 function Bookmarklets() {
   const readRef = useRef<HTMLAnchorElement>(null);
   const saveRef = useRef<HTMLAnchorElement>(null);
-  const [origin, setOrigin] = useState("https://usegloss.io");
+  const [origin, setOrigin] = useState(SITE_URL);
   const code = (param: "url" | "save") => `javascript:void(window.open('${origin}/?${param}='+encodeURIComponent(location.href)))`;
   useEffect(() => setOrigin(window.location.origin), []);
   // React refuses javascript: links in JSX, so they are set by hand.
@@ -245,16 +246,16 @@ function Bookmarklets() {
       <p className="mt-1 text-[13px] text-ink-3">Drag one to your bookmarks bar, then click it on any article.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <a ref={readRef} onClick={(e) => e.preventDefault()} data-tip="Drag me to your bookmarks bar" className={pill}>
-          <BookOpen size={14} className="text-ink-3" /> Read in Gloss
+          <BookOpen size={14} className="text-ink-3" /> Read in Inkling
         </a>
         <a ref={saveRef} onClick={(e) => e.preventDefault()} data-tip="Drag me to your bookmarks bar" className={pill}>
-          <BookmarkPlus size={14} className="text-ink-3" /> Save to Gloss
+          <BookmarkPlus size={14} className="text-ink-3" /> Save to Inkling
         </a>
       </div>
       <details className="mt-3 text-[12.5px] text-ink-3">
         <summary className="cursor-pointer select-none hover:text-ink-2">On a phone</summary>
         <div className="mt-2">
-          <CopyBlock title="Bookmark any page, then edit the bookmark" body="Paste this as its address and name it Save to Gloss." text={code("save")} />
+          <CopyBlock title="Bookmark any page, then edit the bookmark" body="Paste this as its address and name it Save to Inkling." text={code("save")} />
         </div>
       </details>
     </div>
@@ -277,7 +278,7 @@ function Agent({ signedIn }: { signedIn: boolean }) {
   const [label, setLabel] = useState("Grok Bot");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://usegloss.io";
+  const origin = typeof window !== "undefined" ? window.location.origin : SITE_URL;
 
   useEffect(() => {
     if (!signedIn) return;
@@ -369,25 +370,25 @@ function AgentIntro() {
       <div>
         <p className="font-serif text-[19px] leading-tight text-ink">Let your agent shelve for you</p>
         <p className="mt-1 text-[13px] leading-[1.5] text-ink-3">
-          Gloss has an MCP server. Give it to Grok Bot, Claude or ChatGPT, then ask: &ldquo;go through my X bookmarks from this month and save the articles to my Gloss library.&rdquo; Each one is read in, sorted onto a topic, and on your shelves the next time you open Gloss.
+          Inkling has an MCP server. Give it to Grok Bot, Claude or ChatGPT, then ask: &ldquo;go through my X bookmarks from this month and save the articles to my Inkling library.&rdquo; Each one is read in, sorted onto a topic, and on your shelves the next time you open Inkling.
         </p>
       </div>
     </div>
   );
 }
 
-const PROMPT = "Go through my X bookmarks from the last month, find the ones that link to articles, essays or papers, and save those links to my Gloss library.";
+const PROMPT = "Go through my X bookmarks from the last month, find the ones that link to articles, essays or papers, and save those links to my Inkling library.";
 
 function Setup({ token, label, origin }: { token: string; label: string; origin: string }) {
   const url = `${origin}/mcp`;
   const steps: { title: string; body: string; copy: string }[] =
     label === "Grok Bot" || label === "Grok"
       ? [
-          { title: "Grok Bot: say this in a chat", body: "It asks you to confirm; then the Gloss tools are ready.", copy: `Add a custom MCP server called Gloss at ${url} with the header Authorization set to Bearer ${token}` },
+          { title: "Grok Bot: say this in a chat", body: "It asks you to confirm; then the Inkling tools are ready.", copy: `Add a custom MCP server called Inkling at ${url} with the header Authorization set to Bearer ${token}` },
         ]
       : label === "Claude"
         ? [
-            { title: "Claude Code: run this", body: "Then ask Claude to save something to your Gloss library.", copy: `claude mcp add --transport http gloss ${url} --header "Authorization: Bearer ${token}"` },
+            { title: "Claude Code: run this", body: "Then ask Claude to save something to your Inkling library.", copy: `claude mcp add --transport http inkling ${url} --header "Authorization: Bearer ${token}"` },
             { title: "Or claude.ai: Settings, Connectors, Add custom connector", body: "This link carries your token, so keep it private.", copy: `${url}/${token}` },
           ]
         : [

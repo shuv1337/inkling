@@ -1,14 +1,15 @@
 /**
- * The Gloss MCP server: a reader's agent saves articles (by link, or as text it
+ * The Inkling MCP server: a reader's agent saves articles (by link, or as text it
  * has read itself) to their library and looks through it. Streamable HTTP, stateless: every request is one JSON-RPC
  * message answered with JSON, no session and no event stream.
  *
  * Auth is a personal token from the library ("Connect an agent"), sent as
  * `Authorization: Bearer gls_...`, or as the last part of the URL
- * (usegloss.io/mcp/gls_...) for clients that only take a URL.
+ * (<site>/mcp/gls_...) for clients that only take a URL.
  */
 
 import { hashToken, looksLikeToken, type TokenScope } from "./agent";
+import { SITE_URL } from "./brand";
 import { normalizeUrl } from "./links";
 import { blockText, textToArticle, wordCount, type Article } from "./article";
 import { shelfOf, shelveForUser, tokenUser, type ShelfRow } from "./db";
@@ -26,18 +27,18 @@ const PER_CALL = 25;
 /** About 60,000 words: a long essay or a two-hour transcript, well short of a book. */
 const MAX_TEXT = 400_000;
 const PER_DAY = 1000;
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://usegloss.io";
+const SITE = SITE_URL;
 
-const INSTRUCTIONS = `Gloss is a reader. This server is the reader's own library in Gloss: save articles to it, and read what is there.
-When saving from social posts or bookmarks, send the URL of the article, essay or paper itself (the link inside the post), not the post. A link to a single post on X or Twitter (x.com or twitter.com, with /status/ in the path) is the exception: Gloss fetches that post, including a long post or an X Article. Gloss reads each page in, sorts it onto a topic, and it appears on the reader's shelves the next time they open Gloss.
-Gloss can't fetch profiles, other social sites, videos, or pages behind a login. When the reader wants a video's transcript or a thread you have already read, send the full text with save_text.
-To read the library, list_items lists the shelf, search_items finds words in the full text, and get_item returns the text (markdown, or blocks) a page at a time. get_highlights, get_notes, and get_brief return the reader's marks, questions, and brief. add_highlight and add_note write those, and they show up in Gloss after the next sync. A token may be limited to read or write.`;
+const INSTRUCTIONS = `Inkling is a reader. This server is the reader's own library in Inkling: save articles to it, and read what is there.
+When saving from social posts or bookmarks, send the URL of the article, essay or paper itself (the link inside the post), not the post. A link to a single post on X or Twitter (x.com or twitter.com, with /status/ in the path) is the exception: Inkling fetches that post, including a long post or an X Article. Inkling reads each page in, sorts it onto a topic, and it appears on the reader's shelves the next time they open Inkling.
+Inkling can't fetch profiles, other social sites, videos, or pages behind a login. When the reader wants a video's transcript or a thread you have already read, send the full text with save_text.
+To read the library, list_items lists the shelf, search_items finds words in the full text, and get_item returns the text (markdown, or blocks) a page at a time. get_highlights, get_notes, and get_brief return the reader's marks, questions, and brief. add_highlight and add_note write those, and they show up in Inkling after the next sync. A token may be limited to read or write.`;
 
 export const TOOLS = [
   {
     name: "save_articles",
     title: "Save articles to the library",
-    description: `Save web articles, essays, blog posts, papers, or a single X or Twitter post to the reader's Gloss library. Gloss fetches each page, keeps its full text and sorts it onto a topic. Up to ${PER_CALL} URLs per call. An x.com or twitter.com status link is saved as the post. Other social links are not: send the article the post points to. Links already in the library are skipped. Returns what happened to each URL.`,
+    description: `Save web articles, essays, blog posts, papers, or a single X or Twitter post to the reader's Inkling library. Inkling fetches each page, keeps its full text and sorts it onto a topic. Up to ${PER_CALL} URLs per call. An x.com or twitter.com status link is saved as the post. Other social links are not: send the article the post points to. Links already in the library are skipped. Returns what happened to each URL.`,
     inputSchema: {
       type: "object",
       properties: { urls: { type: "array", items: { type: "string" }, minItems: 1, maxItems: PER_CALL, description: "Article URLs to save." } },
@@ -49,7 +50,7 @@ export const TOOLS = [
   {
     name: "save_text",
     title: "Save a text to the library",
-    description: "Save a text you have read yourself to the reader's Gloss library, for what Gloss can't fetch from a link: an X Article, a long post or a thread on X, a video's transcript, a page behind a login. Send the whole text as Markdown (blank lines between paragraphs, # for headings), word for word, not a summary. Give the original URL so the reader can open the source and the text isn't saved twice. One text per call.",
+    description: "Save a text you have read yourself to the reader's Inkling library, for what Inkling can't fetch from a link: an X Article, a long post or a thread on X, a video's transcript, a page behind a login. Send the whole text as Markdown (blank lines between paragraphs, # for headings), word for word, not a summary. Give the original URL so the reader can open the source and the text isn't saved twice. One text per call.",
     inputSchema: {
       type: "object",
       properties: {
@@ -68,7 +69,7 @@ export const TOOLS = [
   {
     name: "search_library",
     title: "Search the library",
-    description: "Find texts in the reader's Gloss library by words in the title, author, source or tags, by topic, or by reading status. With no arguments, lists the most recently added.",
+    description: "Find texts in the reader's Inkling library by words in the title, author, source or tags, by topic, or by reading status. With no arguments, lists the most recently added.",
     inputSchema: {
       type: "object",
       properties: {
@@ -169,7 +170,7 @@ export const TOOLS = [
   {
     name: "get_brief",
     title: "Read the brief",
-    description: "The brief Gloss wrote for one text: the gist, the claims, and the caveats. Null when the reader has not briefed it.",
+    description: "The brief Inkling wrote for one text: the gist, the claims, and the caveats. Null when the reader has not briefed it.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The text's id." } },
@@ -181,7 +182,7 @@ export const TOOLS = [
   {
     name: "add_highlight",
     title: "Highlight a passage",
-    description: "Mark a passage the reader can see in Gloss. The quote must appear inside a single block of the text. It shows up after the next sync.",
+    description: "Mark a passage the reader can see in Inkling. The quote must appear inside a single block of the text. It shows up after the next sync.",
     inputSchema: {
       type: "object",
       properties: {
@@ -262,14 +263,14 @@ export async function handle(req: Request, pathToken?: string): Promise<Response
 
   const header = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   const token = looksLikeToken(header) ? header : looksLikeToken(pathToken) ? pathToken : null;
-  if (!process.env.DATABASE_URL) return fail(first.id, -32000, "The Gloss library is not available on this server.", 503);
+  if (!process.env.DATABASE_URL) return fail(first.id, -32000, "The Inkling library is not available on this server.", 503);
   let who: { userId: string; label: string; scopes: TokenScope[] } | null = null;
   try {
     who = token ? await tokenUser(hashToken(token)) : null;
   } catch {
-    return fail(first.id, -32000, "The Gloss library is not reachable right now. Try again in a minute.", 503);
+    return fail(first.id, -32000, "The Inkling library is not reachable right now. Try again in a minute.", 503);
   }
-  if (!who) return fail(first.id, -32001, `Missing or revoked Gloss token. Make one in your library at ${SITE}/library, under Connect an agent.`, 401);
+  if (!who) return fail(first.id, -32001, `Missing or revoked Inkling token. Make one in your library at ${SITE}/library, under Connect an agent.`, 401);
   const { userId, label, scopes } = who;
   if (!allow(`mcp:${userId}`, 60, 60_000)) return fail(first.id, -32002, "Too many requests. Wait a minute, then try again.", 429);
 
@@ -289,7 +290,7 @@ async function answer(msg: Rpc, userId: string, label: string, scopes: TokenScop
       return ok({
         protocolVersion: VERSIONS.includes(asked) ? asked : VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "gloss", title: "Gloss library", version: "1.0.0", websiteUrl: SITE },
+        serverInfo: { name: "gloss", title: "Inkling library", version: "1.0.0", websiteUrl: SITE },
         instructions: INSTRUCTIONS,
       });
     }
@@ -433,7 +434,7 @@ async function saveArticles(userId: string, args: Record<string, unknown>, via: 
   const one = async ({ url, key }: { url: string; key: string }): Promise<Saved> => {
     const kind = notAnArticle(url);
     if (kind === "social") return { url, status: "failed", reason: "This is a social post, not an article. Send the link the post points to, or, if the post is the piece, read it and send its text with save_text." };
-    if (kind === "video") return { url, status: "failed", reason: "This is a video, not an article. Gloss reads text: send its transcript with save_text." };
+    if (kind === "video") return { url, status: "failed", reason: "This is a video, not an article. Inkling reads text: send its transcript with save_text." };
     const known = have.get(key);
     if (known) return { url, status: "already_saved", title: String(known.data.title ?? ""), topic: TOPIC[isTopic(known.data.topic) ? known.data.topic : "unsorted"].name };
     if (budget <= 0) return { url, status: "failed", reason: `The daily limit of ${PER_DAY} saves is reached. Try again tomorrow.` };
@@ -444,7 +445,7 @@ async function saveArticles(userId: string, args: Record<string, unknown>, via: 
     let r = html ? await fetchArticle(html) : null;
     if (!r?.ok) r = await fetchArticle(url, { pdf: true });
     if (!r.ok) return { url, status: "failed", reason: r.error };
-    if ("pdf" in r) return { url, status: "failed", reason: "This link is a PDF. Agents can't save PDFs yet; open it in Gloss to read it." };
+    if ("pdf" in r) return { url, status: "failed", reason: "This link is a PDF. Agents can't save PDFs yet; open it in Inkling to read it." };
     const a = r.article;
     if (have.has(normalizeUrl(a.sourceUrl ?? ""))) {
       const k = have.get(normalizeUrl(a.sourceUrl ?? ""))!;

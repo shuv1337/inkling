@@ -37,7 +37,7 @@ export const FORBIDDEN_FIELDS = [
 ] as const;
 
 export const USAGE_LIMIT_MESSAGE =
-  "ChatGPT's usage limit for Gloss was reached. This can happen in the middle of an answer. Open ChatGPT, then Settings, then Usage, and check this app's weekly limit. The plan can still have room when the app cap is used up.";
+  "ChatGPT's usage limit for Inkling was reached. This can happen in the middle of an answer. Open ChatGPT, then Settings, then Usage, and check this app's weekly limit. The plan can still have room when the app cap is used up.";
 
 const USAGE_UNAVAILABLE_MESSAGE = "ChatGPT could not check usage just now. Wait a moment and try again.";
 
@@ -202,7 +202,7 @@ export function responsesHttpError(status: number, raw: string): string {
   if (known) return known;
   if (status === 429) return USAGE_LIMIT_MESSAGE;
   if (status === 401) return "ChatGPT did not accept this sign-in. Run npm run chatgpt:login again.";
-  if (status === 403) return "ChatGPT refused this request. Check that plan usage was allowed for Gloss.";
+  if (status === 403) return "ChatGPT refused this request. Check that plan usage was allowed for Inkling.";
   if (status === 503) return USAGE_UNAVAILABLE_MESSAGE;
   const detail = safeDetail(parsed.message);
   return detail ? `ChatGPT request failed (${status}). ${detail}` : `ChatGPT request failed (${status}).`;
@@ -319,7 +319,7 @@ function errorCode(payload: ResponsePayload): { code?: string; param?: string } 
 }
 
 /**
- * Turns Responses SSE events into the stream Gloss already uses.
+ * Turns Responses SSE events into the stream Inkling already uses.
  * A tool call is held until response.completed so its arguments are whole.
  * response.failed, including a usage limit after text has started, is an error
  * and not a finished answer.

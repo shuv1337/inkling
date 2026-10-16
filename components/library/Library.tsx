@@ -242,7 +242,7 @@ export function Library() {
 
   const openBook = open ? books.find((b) => b.id === open.id) ?? null : null;
   const first = firstName;
-  const owner = name || first || "A Gloss reader";
+  const owner = name || first || "An Inkling reader";
   const T = topic ? TOPIC[topic] : null;
   const topicBooks = useMemo(() => (topic ? books.filter((b) => b.topic === topic).sort((a, b) => b.added - a.added).filter(match) : []), [topic, books, match]);
   const screen = topic ? `topic-${topic}` : view;

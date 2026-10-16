@@ -1,5 +1,5 @@
 /**
- * Maths written as TeX, as plain readable text. Formulas reach Gloss as TeX
+ * Maths written as TeX, as plain readable text. Formulas reach Inkling as TeX
  * from two places: Wikipedia's formula images (their alt text) and page
  * readers that write maths between $ signs. The reader shows plain text, so
  * "\frac{L}{D}" becomes "(L/D)" and "\Delta p" becomes "Δp": enough to read, not to typeset.

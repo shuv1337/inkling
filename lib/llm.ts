@@ -8,7 +8,7 @@
 
 import { resolveModel, type ModelEntry } from "./models";
 
-export const APP_UA = "Gloss/0.1";
+export const APP_UA = "Inkling/0.1";
 export const TOGETHER_API_BASE = "https://api.together.xyz/v1";
 
 type Env = Record<string, string | undefined>;

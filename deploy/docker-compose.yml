@@ -1,4 +1,4 @@
-# Local Postgres for a self-hosted Gloss. Bind it to localhost only.
+# Local Postgres for a self-hosted Inkling. Bind it to localhost only.
 # The password comes from the environment (`.env.local` when started with
 # `npm run db:up`): POSTGRES_PASSWORD, and the same value inside DATABASE_URL.
 #

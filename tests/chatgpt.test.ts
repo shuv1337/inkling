@@ -93,7 +93,7 @@ test("AES-GCM round trip hides the token and rejects a missing, short, or wrong 
   assert.throws(() => parseEncryptionKey("too-short"), /must be 32 bytes/);
   assert.throws(() => decryptSecret(encoded, Buffer.alloc(32, 9)), /does not match/);
   const tampered = `${encoded.slice(0, -2)}${encoded.endsWith("a") ? "b" : "a"}`;
-  assert.throws(() => decryptSecret(tampered, key), /does not match|not a Gloss ciphertext/);
+  assert.throws(() => decryptSecret(tampered, key), /does not match|not an Inkling ciphertext/);
 });
 
 test("a refresh rotates the refresh token, and two callers share one exchange", async () => {
@@ -247,7 +247,7 @@ test("the authorize URL is loopback PKCE registration with no client secret", ()
   );
   assert.equal(url.origin + url.pathname, AUTHORIZE_URL);
   assert.equal(url.searchParams.get("client_id"), DYNAMIC_CLIENT);
-  assert.equal(url.searchParams.get("agent_name_hint"), "Gloss");
+  assert.equal(url.searchParams.get("agent_name_hint"), "Inkling");
   assert.equal(url.searchParams.get("redirect_uri"), "http://127.0.0.1:1455/auth/callback");
   assert.equal(url.searchParams.get("redirect_uri")?.includes("localhost"), false);
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");

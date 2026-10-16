@@ -154,7 +154,7 @@ export async function fetchArticle(raw: string, opts: { pdf?: boolean } = {}): P
   if (xStatusId(checked.toString())) return fetchXPost(checked.toString());
   const kind = notAnArticle(checked.toString());
   if (kind === "social") return { ok: false, error: "That's a post, not an article. Open the link it shares, or copy the post and use Paste text.", status: 422 };
-  if (kind === "video") return { ok: false, error: "That's a video, and Gloss reads text. Copy its transcript and use Paste text.", status: 422 };
+  if (kind === "video") return { ok: false, error: "That's a video, and Inkling reads text. Copy its transcript and use Paste text.", status: 422 };
 
   // Follow redirects by hand so every hop gets the same private-address check.
   let res: Response | null = null;

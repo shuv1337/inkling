@@ -5,7 +5,7 @@ import { inlineMd, markdownBlocks, slugify, tidyTitle, undash, type Article, typ
 import { llmStatus, readApiKey } from "./ask";
 
 /**
- * PDF to Gloss blocks, in two passes.
+ * PDF to Inkling blocks, in two passes.
  *
  * 1. LiteParse (Rust, compiled to WebAssembly) reads the text layer in the
  *    browser: reading order across columns, headings, lists and real tables,
@@ -184,7 +184,7 @@ const plain = (md: string) =>
     .join("")
     .trim();
 
-/** One LiteParse block as a Gloss block, or nothing for rules, pictures and the shards of diagrams. */
+/** One LiteParse block as an Inkling block, or nothing for rules, pictures and the shards of diagrams. */
 function toBlock(b: LayoutBlock): Block | null {
   const runs = (t: string) => inlineMd(undash(t.replace(/\s+/g, " ").trim()));
   switch (b.kind) {

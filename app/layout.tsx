@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Atkinson_Hyperlegible_Next, Literata, Newsreader, Schibsted_Grotesk } from "next/font/google";
 import { BOOT_SCRIPT } from "@/lib/settings";
 import "./globals.css";
@@ -51,11 +50,11 @@ async function ClerkShell({ children }: { children: React.ReactNode }) {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: "Gloss", template: "%s" },
+  title: { default: "Inkling", template: "%s" },
   description: DESCRIPTION,
-  applicationName: "Gloss",
-  openGraph: { type: "website", siteName: "Gloss", title: "Gloss", description: DESCRIPTION, url: "/", images: [OG_IMAGE] },
-  twitter: { card: "summary_large_image", title: "Gloss", description: DESCRIPTION, images: [OG_IMAGE.url] },
+  applicationName: "Inkling",
+  openGraph: { type: "website", siteName: "Inkling", title: "Inkling", description: DESCRIPTION, url: "/", images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: "Inkling", description: DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export const viewport: Viewport = {
@@ -87,8 +86,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         {shell}
         <Tooltips />
-        {/* Plausible: cookieless page views, from the production site only, so previews and local runs never count. */}
-        {process.env.VERCEL_ENV === "production" && <Script defer data-domain="usegloss.io" src="https://plausible.io/js/script.js" strategy="afterInteractive" />}
       </body>
     </html>
   );

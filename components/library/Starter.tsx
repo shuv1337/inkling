@@ -66,7 +66,7 @@ export function Starter({ count, signedIn, onAdd }: { count: number; signedIn: b
           <Link2 size={20} />
         </span>
         <span className="starter-title">Save your own links</span>
-        <span className="starter-body">Paste one or many. Gloss reads each one in and sorts it onto a topic.</span>
+        <span className="starter-body">Paste one or many. Inkling reads each one in and sorts it onto a topic.</span>
       </button>
       <button type="button" className="starter-card" onClick={() => onAdd("agent")}>
         <span className="starter-icon is-agent">

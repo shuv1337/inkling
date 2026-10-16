@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, NotebookPen } from "lucide-react";
 import { Account } from "@/components/account/Account";
-import { Lockup } from "@/components/brand/Gloss";
+import { Lockup } from "@/components/brand/Inkling";
 import { KeyMenu } from "@/components/ui/KeyMenu";
 import { ListenButton } from "./Listen";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";

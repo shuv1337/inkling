@@ -1,7 +1,7 @@
 import { undash, type Block, type BlockType, type Run } from "./article";
 
 /**
- * Walks a cleaned article DOM (Readability output) into Gloss blocks.
+ * Walks a cleaned article DOM (Readability output) into Inkling blocks.
  * Works with any DOM implementation: it only touches nodeType, tagName,
  * childNodes, textContent and getAttribute.
  */

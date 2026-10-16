@@ -15,7 +15,7 @@ export const AUTHORIZE_URL = "https://auth.openai.com/api/accounts/authorize";
 export const TOKEN_URL = "https://auth.openai.com/api/accounts/oauth/token";
 export const RESOURCE = "https://api.openai.com/v1";
 export const DYNAMIC_CLIENT = "dynamic_agent_client";
-export const AGENT_NAME = "Gloss";
+export const AGENT_NAME = "Inkling";
 export const PLAN_SCOPE = "chatgpt.tokens.use.direct";
 export const REQUESTED_SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 

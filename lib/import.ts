@@ -42,7 +42,7 @@ export async function importFromFile(file: File, onProgress?: (p: number, label?
       a.source = file.name;
       return { ok: true, article: a };
     }
-    return { ok: false, error: "Gloss reads PDF, .txt and .md files." };
+    return { ok: false, error: "Inkling reads PDF, .txt and .md files." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not read that file." };
   }

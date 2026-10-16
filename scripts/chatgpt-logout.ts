@@ -38,7 +38,7 @@ async function main() {
   } else {
     console.log("Cleared the local tokens. Remote revocation was not confirmed.");
   }
-  console.log("In ChatGPT, open Settings, then Security and login, then Login connections, and disconnect Gloss if it is still listed.");
+  console.log("In ChatGPT, open Settings, then Security and login, then Login connections, and disconnect Inkling if it is still listed (a link made before the rename keeps its old name).");
   console.log("Plan limits live under Settings, then Usage.");
 }
 

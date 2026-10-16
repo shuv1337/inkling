@@ -12,7 +12,7 @@ import { indexArticle } from "@/lib/doc";
 import { fetchText } from "@/lib/sync";
 import { loadDoc, useGlosses, useHighlights, useStore, type Anchor } from "@/lib/store";
 import { applySettings } from "@/lib/settings";
-import { GlossWordmark } from "@/components/brand/Gloss";
+import { InklingWordmark } from "@/components/brand/Inkling";
 import { Block, type Mark } from "./Block";
 import { Brief } from "./Brief";
 import { CarefulRead } from "./CarefulRead";
@@ -77,7 +77,7 @@ export function Reader({ id, initial }: { id: string; initial: Article | null })
     return (
       <main className="grid min-h-dvh place-items-center px-6 text-center">
         <div>
-          <GlossWordmark />
+          <InklingWordmark />
           <p className="mt-6 font-serif text-[26px] text-ink">This text is not on this device.</p>
           <p className="mt-2 text-[14px] text-ink-3">Imported texts live in the browser that imported them, or in your account when you are signed in.</p>
           <Link href="/" className="mt-6 inline-flex h-10 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-bg">

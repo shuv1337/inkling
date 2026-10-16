@@ -73,14 +73,14 @@ export function Brief() {
   const { data, usage, modelKey } = brief;
   const caveats = data.caveats ?? [];
   return (
-    <section aria-label="Gloss" className="mt-6 rounded-[16px] border border-rule bg-raised/60 px-5">
+    <section aria-label="Brief" className="mt-6 rounded-[16px] border border-rule bg-raised/60 px-5">
       <button
         type="button"
         onClick={() => setUI({ briefOpen: !open })}
         aria-expanded={open}
         className="flex w-full items-center gap-2.5 py-3.5 text-left"
       >
-        <span className="text-[13.5px] font-medium text-ink">Gloss</span>
+        <span className="text-[13.5px] font-medium text-ink">Brief</span>
         <span className="text-[13px] text-ink-3">
           {data.sections.length} parts {"\u00b7"} {data.claims.length} claims
           {caveats.length > 0 && ` \u00b7 ${caveats.length} ${caveats.length === 1 ? "caveat" : "caveats"}`}

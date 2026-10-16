@@ -80,7 +80,7 @@ export type LibraryItem = {
   favorite?: boolean;
   /** When it was first read to the end. */
   finishedAt?: number;
-  /** Shelved by an agent, through the Gloss MCP server. */
+  /** Shelved by an agent, through the Inkling MCP server. */
   addedBy?: "agent";
   /** Which connection an agent saved it through, by the name the reader gave it. */
   addedVia?: string;

@@ -83,7 +83,7 @@ function waitForCallback(port: number): Promise<URL> {
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
       const ok = url.pathname === "/auth/callback";
       res.writeHead(ok ? 200 : 404, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(ok ? "<!doctype html><meta charset=utf-8><title>Gloss</title><p>ChatGPT sign-in finished. You can close this tab.</p>" : "Not found");
+      res.end(ok ? "<!doctype html><meta charset=utf-8><title>Inkling</title><p>ChatGPT sign-in finished. You can close this tab.</p>" : "Not found");
       if (!ok) return;
       server.close();
       resolve(url);
@@ -200,7 +200,7 @@ async function main() {
   };
   const session = applyTokenResponse(blank, { ...token, scope }, Date.now());
   if (!planGranted(session.scopes)) {
-    throw new ChatgptAuthError("ChatGPT did not grant plan usage (chatgpt.tokens.use.direct). Sign in again and allow Gloss to use the plan. Nothing was saved.");
+    throw new ChatgptAuthError("ChatGPT did not grant plan usage (chatgpt.tokens.use.direct). Sign in again and allow Inkling to use the plan. Nothing was saved.");
   }
 
   if (wantsExport) {
@@ -213,7 +213,7 @@ async function main() {
     console.log("Stored the ChatGPT sign-in in Postgres.");
   }
   console.log(`Linked ${session.email ?? "the ChatGPT account"}.`);
-  console.log(`The access token expires ${new Date(session.expiresAt).toISOString()}. Gloss refreshes it on its own.`);
+  console.log(`The access token expires ${new Date(session.expiresAt).toISOString()}. Inkling refreshes it on its own.`);
 }
 
 main()

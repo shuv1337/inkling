@@ -72,7 +72,7 @@ export const TOPICS: Topic[] = [
   { key: "writing", name: "Writing", shades: ["#b0502d", "#cc7147", "#86381c", "#e6a580"], inks: "terracotta and burnt orange", hint: "writing, language, storytelling, journalism, communication", blurb: "Words, sentences and the craft of saying things clearly." },
   { key: "learning", name: "Learning", shades: ["#2c7a76", "#4c9b94", "#1c5654", "#8cc4bd"], inks: "deep teal and pale sea-green", hint: "education, learning, teaching, memory, tools for thought, note-taking", blurb: "How we learn, remember and think with tools." },
   { key: "living", name: "Living", shades: ["#b0841f", "#cda03a", "#835f15", "#e5c97a"], inks: "mustard ochre and olive green", hint: "life, relationships, attention, time, happiness, personal essays, food, travel", blurb: "Attention, time and the rest of life." },
-  { key: "unsorted", name: "Unsorted", shades: ["#5d5a55", "#7b776f", "#3f3d39", "#aaa59b"], inks: "warm grey and charcoal", hint: "", blurb: "Not shelved yet. Gloss sorts new texts as they arrive." },
+  { key: "unsorted", name: "Unsorted", shades: ["#5d5a55", "#7b776f", "#3f3d39", "#aaa59b"], inks: "warm grey and charcoal", hint: "", blurb: "Not shelved yet. Inkling sorts new texts as they arrive." },
 ];
 
 export const TOPIC = Object.fromEntries(TOPICS.map((t) => [t.key, t])) as Record<TopicKey, Topic>;

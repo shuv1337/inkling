@@ -8,7 +8,7 @@ export default async function proxy(req: NextRequest, event: NextFetchEvent) {
     return clerkMiddleware()(req, event);
   }
   if (!tailscaleAllowed(req.headers.get("tailscale-user-login"))) {
-    return new NextResponse("This Gloss is only for its owner.", { status: 403 });
+    return new NextResponse("This Inkling is only for its owner.", { status: 403 });
   }
   return NextResponse.next();
 }

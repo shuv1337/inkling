@@ -21,7 +21,7 @@ test("default provider is Together, with thinking disabled", () => {
   if (!built.ok) return;
   assert.equal(built.url, `${TOGETHER_API_BASE}/chat/completions`);
   assert.equal(built.headers.Authorization, "Bearer tg-test");
-  assert.equal(built.headers["User-Agent"], "Gloss/0.1");
+  assert.equal(built.headers["User-Agent"], "Inkling/0.1");
   assert.equal(built.body.model, "deepseek-ai/DeepSeek-V4.1-Flash");
   assert.deepEqual(built.body.chat_template_kwargs, { enable_thinking: false });
   assert.equal(built.body.stream, true);

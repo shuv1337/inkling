@@ -27,7 +27,7 @@ export type ThreadPayload = {
 export function systemFor(doc: DocPayload): string {
   const byline = [doc.author, doc.published].filter(Boolean).join(", ");
   const body = doc.paras.map((p) => `[¶${p.n}] ${p.text}`).join("\n\n");
-  return `You are Gloss, a reading companion. You write short notes in the margin of a text someone is studying closely. Think of a sharp, generous scholar leaning over their shoulder.
+  return `You are Inkling, a reading companion. You write short notes in the margin of a text someone is studying closely. Think of a sharp, generous scholar leaning over their shoulder.
 
 THE TEXT: "${doc.title}"${byline ? ` by ${byline}` : ""}.
 Paragraphs are numbered [¶n]; the reader sees the same numbers in the margin.${doc.partial ? "\nOnly part of a long text is included below; say so if a question needs the rest." : ""}

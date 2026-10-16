@@ -49,7 +49,7 @@ export function encryptSecret(plain: string, key: Buffer): string {
 
 export function decryptSecret(encoded: string, key: Buffer): string {
   const parts = encoded.split(".");
-  if (parts.length !== 4 || parts[0] !== "v1") throw new TokenCryptoError("Could not decrypt the ChatGPT token. The stored value is not a Gloss ciphertext.");
+  if (parts.length !== 4 || parts[0] !== "v1") throw new TokenCryptoError("Could not decrypt the ChatGPT token. The stored value is not an Inkling ciphertext.");
   try {
     const iv = Buffer.from(parts[1], "base64url");
     const tag = Buffer.from(parts[2], "base64url");

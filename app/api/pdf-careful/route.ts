@@ -10,7 +10,7 @@ export const maxDuration = 300;
 
 /**
  * "Read it more carefully": a PDF read again by LlamaParse, for layouts the
- * free reader gets wrong. It runs on Gloss's LlamaParse key, but only for
+ * free reader gets wrong. It runs on Inkling's LlamaParse key, but only for
  * readers who have added their own API key, or linked ChatGPT; they get a daily page cap.
  */
 // Agentic scored 8.1/10 against cost_effective's 6.9 in scripts/pdf-eval, at $0.0125 a page against $0.0037.
