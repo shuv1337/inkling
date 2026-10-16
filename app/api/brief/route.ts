@@ -3,7 +3,7 @@ import { BRIEF_TASK, systemFor, type DocPayload } from "@/lib/prompts";
 import { completeJSON, DEFAULT_MODEL, isModelKey } from "@/lib/together";
 import { undash, type BriefData } from "@/lib/article";
 import { chargeFree, checkFree, estimateUsd, needKey } from "@/lib/quota";
-import { MODELS } from "@/lib/models";
+import { MODELS, resolveModel } from "@/lib/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -70,5 +70,5 @@ export async function POST(req: Request) {
       .sort((a, b) => a.start - b.start)
       .slice(0, 10),
   };
-  return Response.json({ brief, usage: result.usage, model }, { headers: free ? { "X-Free-Left": free.left.toFixed(3) } : undefined });
+  return Response.json({ brief, usage: result.usage, model, modelLabel: resolveModel(model).entry.label }, { headers: free ? { "X-Free-Left": free.left.toFixed(3) } : undefined });
 }

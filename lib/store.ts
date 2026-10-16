@@ -49,7 +49,7 @@ export type Highlight = { id: string; articleId: string; anchor: Anchor; created
 
 export type BriefState =
   | { status: "loading" }
-  | { status: "ready"; data: BriefData; usage?: Usage; modelKey?: ModelKey; at: number }
+  | { status: "ready"; data: BriefData; usage?: Usage; modelKey?: ModelKey; modelLabel?: string; at: number }
   | { status: "error"; error: string; needKey?: boolean };
 
 export type { Settings } from "./settings";

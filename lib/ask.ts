@@ -218,8 +218,8 @@ export async function fetchBrief(ix: DocIndex) {
       body: JSON.stringify({ apiKey: apiKey || undefined, model: modelKey, doc: docPayload(ix) }),
     });
     noteFree(res);
-    const j = (await res.json()) as { brief?: BriefData; usage?: Usage; error?: string; code?: string };
-    if (j.brief) useStore.getState().setBrief(id, { status: "ready", data: j.brief, usage: j.usage, modelKey, at: Date.now() });
+    const j = (await res.json()) as { brief?: BriefData; usage?: Usage; modelLabel?: string; error?: string; code?: string };
+    if (j.brief) useStore.getState().setBrief(id, { status: "ready", data: j.brief, usage: j.usage, modelKey, modelLabel: j.modelLabel, at: Date.now() });
     else useStore.getState().setBrief(id, { status: "error", error: j.error ?? "Could not write the gloss.", needKey: j.code === "need_key" });
   } catch (e) {
     useStore.getState().setBrief(id, { status: "error", error: `Connection lost: ${String(e)}` });
