@@ -11,18 +11,19 @@ import { HttpStatusError, withRetry, withTimeout } from "./retry";
 
 const BASE = "https://api.cloud.llamaindex.ai/api/v2/parse";
 const UPLOAD_TIMEOUT_MS = 60_000;
+// The poll loop is its own retry, so each poll is one attempt capped by the time left.
 const POLL_TIMEOUT_MS = 15_000;
 const RESULT_TIMEOUT_MS = 30_000;
 
 /** An idempotent GET with a per-attempt deadline; timeouts, network errors and 5xx are retried. */
-async function getJson(url: string, headers: Record<string, string>, timeoutMs: number, signal?: AbortSignal): Promise<unknown> {
+async function getJson(url: string, headers: Record<string, string>, timeoutMs: number, attempts: number, signal?: AbortSignal): Promise<unknown> {
   return withRetry(
     async (attemptSignal) => {
       const r = await fetch(url, { headers, signal: attemptSignal });
       if (!r.ok) throw new HttpStatusError(r.status);
       return r.json();
     },
-    signal ? { attempts: 3, timeoutMs, signal } : { attempts: 3, timeoutMs },
+    signal ? { attempts, timeoutMs, signal } : { attempts, timeoutMs },
   );
 }
 
@@ -55,14 +56,14 @@ export async function parseCarefully(pdf: Blob, opts: { tier: Tier; maxPages: nu
   while (Date.now() - started < deadline) {
     if (opts.signal?.aborted) return { ok: false, error: "Stopped." };
     await new Promise((r) => setTimeout(r, 1500));
-    const s = (await getJson(`${BASE}/${job}`, auth, POLL_TIMEOUT_MS, opts.signal).catch(() => null)) as { job?: { status?: string; error_message?: string | null } } | null;
+    const s = (await getJson(`${BASE}/${job}`, auth, Math.max(1_000, Math.min(POLL_TIMEOUT_MS, deadline - (Date.now() - started))), 1, opts.signal).catch(() => null)) as { job?: { status?: string; error_message?: string | null } } | null;
     const status = s?.job?.status;
     if (status === "COMPLETED") break;
     if (status === "FAILED" || status === "CANCELLED") return { ok: false, error: s?.job?.error_message || "The careful reader could not read this file." };
   }
   if (Date.now() - started >= deadline) return { ok: false, error: "Reading carefully took too long. Try a shorter PDF." };
 
-  const res = (await getJson(`${BASE}/${job}?expand=markdown,usage`, auth, RESULT_TIMEOUT_MS, opts.signal).catch(() => null)) as { markdown?: { pages?: { page_number: number; markdown: string; success?: boolean }[] }; job?: { usage?: { credits?: number | null } } } | null;
+  const res = (await getJson(`${BASE}/${job}?expand=markdown,usage`, auth, RESULT_TIMEOUT_MS, 3, opts.signal).catch(() => null)) as { markdown?: { pages?: { page_number: number; markdown: string; success?: boolean }[] }; job?: { usage?: { credits?: number | null } } } | null;
   const pages = (res?.markdown?.pages ?? []).sort((a, b) => a.page_number - b.page_number).map((p) => p.markdown ?? "");
   if (!pages.some((p) => p.trim())) return { ok: false, error: "The careful reader found no text in this file." };
   return { ok: true, pages, credits: res?.job?.usage?.credits ?? null };
