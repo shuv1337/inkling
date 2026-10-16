@@ -17,6 +17,7 @@ import { ImportBar, type Busy } from "./ImportBar";
 import { PasteSheet } from "./PasteSheet";
 import { LibraryLine, type Saved } from "./LibraryLine";
 import { ShelfSheet, type ShelfItem } from "./ShelfSheet";
+import { background } from "@/lib/background";
 
 /** One screen: a headline that shows what it does, a place to paste, and your shelf. */
 export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boolean }) {
@@ -125,7 +126,7 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
       setBusy({ label: `Opening ${f.name}`, pct: f.name.toLowerCase().endsWith(".pdf") ? 0 : undefined });
       // The PDF reader reports what it is doing: "Reading 12 pages", then any scanned ones.
       const r = await importFromFile(f, (p, label) => setBusy({ label: label ?? `Reading ${f.name}`, pct: p }));
-      if (r.ok) finish(r.article, r.file);
+      if (r.ok) await finish(r.article, r.file);
       else {
         setError(r.error);
         setErrorNeedsKey(Boolean(r.needKey));
@@ -139,7 +140,7 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
     (text: string) => {
       const r = importFromText(text);
       setPasteOpen(false);
-      if (r.ok) finish(r.article);
+      if (r.ok) background(finish(r.article), "keeping pasted text");
       else setError(r.error);
     },
     [finish]
@@ -154,7 +155,7 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
       if (looksLikeUrl(t)) {
         e.preventDefault();
         setUrl(t.trim());
-        fromUrl(t);
+        background(fromUrl(t), "importing a pasted link");
       } else if (t.trim().split(/\s+/).length >= 40) {
         e.preventDefault();
         fromText(t);
@@ -185,7 +186,7 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
       dragDepth.current = 0;
       setDragging(false);
       const f = e.dataTransfer?.files?.[0];
-      if (f) fromFile(f);
+      if (f) background(fromFile(f), "importing a dropped file");
     };
     document.addEventListener("paste", onPaste);
     window.addEventListener("keydown", onKey);
@@ -247,8 +248,8 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
               busy={busy}
               error={error}
               errorNeedsKey={errorNeedsKey}
-              onSubmit={fromUrl}
-              onSave={(u) => fromUrl(u, true)}
+              onSubmit={(raw) => background(fromUrl(raw), "importing a link")}
+              onSave={(u) => background(fromUrl(u, true), "saving a link")}
               onPickFile={() => fileRef.current?.click()}
               onPasteText={() => setPasteOpen(true)}
             />
@@ -272,7 +273,7 @@ export function Landing({ signedIn: signedInAtLoad = false }: { signedIn?: boole
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) fromFile(f);
+          if (f) background(fromFile(f), "importing a file");
           e.target.value = "";
         }}
       />

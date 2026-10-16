@@ -28,6 +28,7 @@ import { Notebook } from "./Notebook";
 import { Peek, Shortcuts, Toast } from "./Overlays";
 import { Rail } from "./Rail";
 import { TopBar } from "./TopBar";
+import { background } from "@/lib/background";
 
 export function Reader({ id, initial }: { id: string; initial: Article | null }) {
   const [article, setArticle] = useState<Article | null>(initial);
@@ -432,7 +433,7 @@ function ReaderInner({ article }: { article: Article }) {
         case "b":
         case "B": {
           const b = st.briefs[articleId];
-          if (!b || b.status === "error") fetchBrief(ix);
+          if (!b || b.status === "error") background(fetchBrief(ix), "fetching the brief");
           else setUI({ briefOpen: !st.briefOpen });
           if (window.scrollY > 400) window.scrollTo({ top: 0, behavior: "smooth" });
           break;

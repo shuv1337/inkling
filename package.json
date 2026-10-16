@@ -6,7 +6,7 @@
     "dev": "next dev --port 3100",
     "build": "next build",
     "start": "next start --port 3100",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && oxlint --type-aware --deny-warnings",
     "db:up": "docker compose --env-file .env.local -f deploy/docker-compose.yml up -d",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:roundtrip": "node --env-file-if-exists=.env.local --import tsx scripts/sync-roundtrip.ts",
@@ -34,6 +34,8 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "oxlint": "1.88.0",
+    "oxlint-tsgolint": "7.0.2004",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"

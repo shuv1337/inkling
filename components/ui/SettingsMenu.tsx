@@ -162,7 +162,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
       ev.stopPropagation();
       vt.skipTransition();
       const { clientX: x, clientY: y } = ev;
-      vt.finished.finally(() => (document.elementFromPoint(x, y) as HTMLElement | null)?.click());
+      vt.finished.finally(() => (document.elementFromPoint(x, y) as HTMLElement | null)?.click()).catch(() => {});
     };
     document.addEventListener("click", passThrough, true);
     vt.ready
@@ -173,13 +173,15 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
         )
       )
       .catch(() => {});
-    vt.finished.finally(() => {
-      document.removeEventListener("click", passThrough, true);
-      if (swap === vt) {
-        swap = null;
-        root.classList.remove("theme-swap");
-      }
-    });
+    vt.finished
+      .finally(() => {
+        document.removeEventListener("click", passThrough, true);
+        if (swap === vt) {
+          swap = null;
+          root.classList.remove("theme-swap");
+        }
+      })
+      .catch(() => {});
   };
 
   return (

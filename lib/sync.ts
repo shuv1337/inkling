@@ -198,17 +198,18 @@ export function startSync(userId: string) {
     if (!st.hydrated) return;
     if (st.library === prev.library && st.highlights === prev.highlights && st.glosses === prev.glosses && st.briefs === prev.briefs && st.progress === prev.progress) return;
     if (timer) clearTimeout(timer);
-    timer = setTimeout(() => serial(push), 2000);
+    // serial() swallows errors (a failed push retries on the next change), so these are fire-and-forget.
+    timer = setTimeout(() => void serial(push), 2000);
   });
 
   let lastPull = 0;
   const pullIfStale = (ms: number) => {
     if (document.visibilityState === "hidden" || Date.now() - lastPull < ms) return;
     lastPull = Date.now();
-    sync();
+    void sync();
   };
   const onVisible = () => {
-    if (document.visibilityState === "hidden") serial(push);
+    if (document.visibilityState === "hidden") void serial(push);
     else pullIfStale(watchers ? WATCH_MS : 20_000);
   };
   document.addEventListener("visibilitychange", onVisible);
@@ -216,7 +217,7 @@ export function startSync(userId: string) {
   poke = () => pullIfStale(3000);
 
   lastPull = Date.now();
-  sync();
+  void sync();
 
   return {
     stop() {

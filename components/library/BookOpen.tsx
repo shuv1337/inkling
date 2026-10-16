@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ArrowRight, ArrowUpRight, ChevronDown, PencilLine, Star, Trash2 } from "lucide-react";
 import { fmtMinutes, hash, hostOf, lookOf, tagsOf, TOPIC, TOPICS, type Book, type TopicKey } from "@/lib/library";
 import { Cover, Glyph, Spine } from "./Book";
+import { background } from "@/lib/background";
 
 export type Origin = { el: HTMLElement; kind: "spine" | "cover" };
 
@@ -149,7 +150,7 @@ export function BookOpen({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        close();
+        background(close(), "closing the book");
       }
     };
     window.addEventListener("keydown", onKey);
@@ -173,7 +174,7 @@ export function BookOpen({
 
   return createPortal(
     <div className="ob-stage" data-phase={phase} role="dialog" aria-modal aria-label={book.title}>
-      <div className="ob-backdrop" onClick={close} />
+      <div className="ob-backdrop" onClick={() => background(close(), "closing the book")} />
       <div className="ob-world">
         <div ref={shiftRef} className="ob-shift">
           <div
@@ -305,7 +306,7 @@ export function BookOpen({
                     ) : (
                       <span />
                     )}
-                    <button type="button" onClick={close} className="ob-link">
+                    <button type="button" onClick={() => background(close(), "closing the book")} className="ob-link">
                       Put it back <kbd>Esc</kbd>
                     </button>
                   </div>
