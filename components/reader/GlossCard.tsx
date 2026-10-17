@@ -277,7 +277,7 @@ export const GlossCard = forwardRef<HTMLElement, Props>(function GlossCard({ glo
                 <IconBtn label="Try again" onClick={() => retry(ix, gloss.id)}>
                   <RotateCcw size={14} />
                 </IconBtn>
-                <IconBtn label={copied ? "Copied" : "Copy"} onClick={copy}>
+                <IconBtn label={copied ? "Copied" : "Copy"} onClick={() => void copy() /* copy() catches its own errors */}>
                   {copied ? <Check size={14} className="text-good" /> : <Copy size={14} />}
                 </IconBtn>
                 <IconBtn

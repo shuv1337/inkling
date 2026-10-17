@@ -10,6 +10,7 @@ import { normalizeUrl } from "@/lib/links";
 import { useStore } from "@/lib/store";
 import { Mark, MarkStack, type AgentMark } from "./AgentMarks";
 import { Glyph } from "./Book";
+import { background } from "@/lib/background";
 
 export type AddTab = "links" | "agent";
 
@@ -196,7 +197,7 @@ function Links() {
       />
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-[12.5px] text-ink-4">{urls.length ? `${urls.length} link${urls.length === 1 ? "" : "s"}` : text.trim() ? "No links found yet" : ""}</span>
-        <button type="button" onClick={save} disabled={!urls.length || busy} className="add-btn">
+        <button type="button" onClick={() => background(save(), "saving links")} disabled={!urls.length || busy} className="add-btn">
           {busy && <Loader2 size={14} className="animate-spin" />}
           {busy ? "Saving" : urls.length > 1 ? `Save ${Math.min(urls.length, BATCH)}` : "Save"}
         </button>
@@ -332,7 +333,7 @@ function Agent({ signedIn }: { signedIn: boolean }) {
               </button>
             ))}
           </div>
-          <button type="button" onClick={create} disabled={busy} className="add-btn">
+          <button type="button" onClick={() => background(create(), "creating a connection")} disabled={busy} className="add-btn">
             {busy && <Loader2 size={14} className="animate-spin" />}
             Make a connection
           </button>
@@ -351,7 +352,7 @@ function Agent({ signedIn }: { signedIn: boolean }) {
                     {c.lastUsedAt ? `last used ${new Date(c.lastUsedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "not used yet"}
                   </span>
                 </span>
-                <button type="button" onClick={() => revoke(c.id)} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-3 transition-colors hover:bg-sunk hover:text-ink">
+                <button type="button" onClick={() => background(revoke(c.id), "revoking a connection")} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-3 transition-colors hover:bg-sunk hover:text-ink">
                   <Trash2 size={13} /> Revoke
                 </button>
               </li>
@@ -417,12 +418,15 @@ function CopyBlock({ title, body, text }: { title: string; body: string; text: s
         </div>
         <button
           type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1600);
-            } catch {}
+          onClick={() => {
+            // Fire-and-forget; a clipboard failure (e.g. plain http) is ignored.
+            void navigator.clipboard.writeText(text).then(
+              () => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1600);
+              },
+              () => {},
+            );
           }}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunk px-2.5 py-1 text-[12px] font-medium text-ink-2 transition-colors hover:text-ink"
         >

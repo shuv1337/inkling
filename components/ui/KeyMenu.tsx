@@ -5,6 +5,7 @@ import { KeyRound } from "lucide-react";
 import { llmStatus, validateKey, type LlmStatus } from "@/lib/ask";
 import { BRAND } from "@/lib/brand";
 import { Popover, barBtn } from "./Popover";
+import { background } from "@/lib/background";
 
 const STORAGE_KEY = "together:api-key";
 
@@ -152,7 +153,9 @@ function KeyPanel({ current, house, free, onSave, close }: { current: string; ho
           setDraft(e.target.value);
           setState("idle");
         }}
-        onKeyDown={(e) => e.key === "Enter" && save()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") background(save(), "saving the key");
+        }}
         placeholder="API key"
         autoComplete="off"
         spellCheck={false}
@@ -183,7 +186,7 @@ function KeyPanel({ current, house, free, onSave, close }: { current: string; ho
           )}
           <button
             type="button"
-            onClick={save}
+            onClick={() => background(save(), "saving the key")}
             disabled={state === "checking"}
             className="h-8 rounded-lg bg-ink px-3.5 text-[12.5px] font-medium text-bg disabled:opacity-60"
           >

@@ -7,6 +7,7 @@ import { Check, Download, PencilLine, Search, X } from "lucide-react";
 import { readingMinutes, tidyTitle } from "@/lib/article";
 import { exportAll } from "@/lib/export";
 import { useStore, type Highlight } from "@/lib/store";
+import { background } from "@/lib/background";
 /** One text in the sheet: a shelf entry or a sample, with how far it has been read. */
 export type ShelfItem = {
   id: string;
@@ -192,7 +193,7 @@ export function ShelfSheet({
                   aria-label="Export all notes"
                   data-tip={exported !== null ? `Exported ${exported} text${exported === 1 ? "" : "s"}` : "Export all notes"}
                   data-tip-hint={exported !== null ? undefined : "Markdown files, ready for Obsidian"}
-                  onClick={async () => setExported(await exportAll())}
+                  onClick={() => background(exportAll().then(setExported), "exporting notes")}
                   className="grid size-9 place-items-center rounded-full text-ink-3 transition-colors hover:bg-sunk hover:text-ink"
                 >
                   {exported !== null ? <Check size={16} className="text-good" /> : <Download size={16} />}

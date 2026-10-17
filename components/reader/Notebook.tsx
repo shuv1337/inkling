@@ -78,12 +78,15 @@ export function Notebook() {
           <HeadBtn
             label={copied ? "Copied" : "Copy as Markdown"}
             disabled={!entries.length}
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(markdown());
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1400);
-              } catch {}
+            onClick={() => {
+              // Fire-and-forget; a clipboard failure is ignored.
+              void navigator.clipboard.writeText(markdown()).then(
+                () => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1400);
+                },
+                () => {},
+              );
             }}
           >
             {copied ? <Check size={16} className="text-good" /> : <Copy size={16} />}
