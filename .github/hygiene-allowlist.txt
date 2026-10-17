@@ -1,0 +1,3 @@
+# Fleet hygiene allowlist. Rules: path:, pii:, artifact:, email:, text:, shellcheck:
+# Baseline: real shuvdev tailnet host in README (private repo); reported in FM-PYRAMID-2
+pii:README.md
