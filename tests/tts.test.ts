@@ -87,3 +87,20 @@ test("long passages are chunked the same way, under the request limit", () => {
   for (const chunk of chunks) assert.ok(chunk.length <= TTS_MAX_CHARS);
   assert.equal(chunks.join(" ").replace(/\s+/g, " "), text.replace(/\s+/g, " "));
 });
+
+test("paragraph navigation skips unspoken blocks and stops at article boundaries", async () => {
+  const { adjacentSpokenBlock } = await import("../lib/voice");
+  const blocks: import("../lib/article").Block[] = [
+    { id: "first", type: "p", runs: [{ text: "First paragraph." }] },
+    { id: "image", type: "figure", runs: [{ text: "Caption" }] },
+    { id: "empty", type: "p", runs: [{ text: "   " }] },
+    { id: "middle", type: "p", runs: [{ text: "A long sentence. ".repeat(200) }] },
+    { id: "last", type: "quote", runs: [{ text: "Last paragraph." }] },
+  ];
+  assert.equal(adjacentSpokenBlock(blocks, "first", -1), null);
+  assert.equal(adjacentSpokenBlock(blocks, "first", 1), "middle");
+  assert.equal(adjacentSpokenBlock(blocks, "middle", -1), "first");
+  assert.equal(adjacentSpokenBlock(blocks, "middle", 1), "last");
+  assert.equal(adjacentSpokenBlock(blocks, "last", 1), null);
+  assert.equal(adjacentSpokenBlock(blocks, null, 1), null);
+});

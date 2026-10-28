@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowUp, BadgeCheck, BookA, Check, Copy, Ellipsis, Eraser, Feather, Highlighter, Lightbulb, PenLine, Scale, Waypoints, type LucideIcon } from "lucide-react";
+import { ArrowUp, BadgeCheck, BookA, Check, Copy, Ellipsis, Eraser, Feather, Headphones, Highlighter, Lightbulb, PenLine, Scale, Waypoints, type LucideIcon } from "lucide-react";
 import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { startGloss } from "@/lib/ask";
 import { uid, useStore, type Anchor } from "@/lib/store";
 import { useReader } from "./context";
+import { startListening } from "./Listen";
 import { WebSwitch } from "./WebSwitch";
 
 type LensState = {
@@ -45,6 +46,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
   const [menu, setMenu] = useState(false);
+  const listen = useStore((s) => s.settings.listen);
   const marker = useStore((s) => s.settings.marker);
   const setSettings = useStore((s) => s.setSettings);
   const updateHighlight = useStore((s) => s.updateHighlight);
@@ -535,6 +537,17 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
               </div>
             )}
           </form>
+        )}
+        {lens.mode === "actions" && listen && (
+          <button type="button" className="lens-btn mt-1 w-full justify-center gap-2 border-t border-lens-mute/15"
+            onClick={() => {
+              const from = lens.anchor.start.b;
+              close();
+              startListening(ix, from);
+            }}>
+            <Headphones size={15} aria-hidden />
+            Read aloud from here
+          </button>
         )}
         {pos && !pos.docked && (
           <span

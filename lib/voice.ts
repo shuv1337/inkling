@@ -1,3 +1,5 @@
+import { blockText, type Block } from "./article";
+
 /**
  * How a passage is split before it is spoken. Safe on the client: no keys
  * and no network. The provider lives in lib/tts.ts.
@@ -24,4 +26,15 @@ export function passageChunks(text: string, first: boolean): string[] {
   }
   if (cur.trim()) out.push(cur.trim());
   return out.flatMap((c) => (c.length > TTS_MAX_CHARS ? c.match(new RegExp(`[\\s\\S]{1,${TTS_MAX_CHARS}}`, "g")) ?? [] : [c]));
+}
+
+/** Navigation uses the same readable blocks as playback, skipping images and empty text. */
+export function spokenBlocks(blocks: Block[]): Block[] {
+  return blocks.filter((b) => ["p", "h2", "h3", "quote", "li", "note"].includes(b.type) && blockText(b).trim());
+}
+
+export function adjacentSpokenBlock(blocks: Block[], current: string | null, direction: -1 | 1): string | null {
+  const spoken = spokenBlocks(blocks);
+  const at = spoken.findIndex((b) => b.id === current);
+  return at < 0 ? null : spoken[at + direction]?.id ?? null;
 }

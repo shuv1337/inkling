@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { Headphones, LoaderCircle, Pause, Play, Square } from "lucide-react";
+import { Headphones, LoaderCircle, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
-import { blockText, type Block } from "@/lib/article";
+import { blockText } from "@/lib/article";
 import { openKeyMenu, readApiKey } from "@/lib/ask";
 import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
 import { loadTtsPublic, savedVoice, type TtsPublic } from "@/lib/tts-client";
-import { passageChunks } from "@/lib/voice";
+import { adjacentSpokenBlock, passageChunks, spokenBlocks } from "@/lib/voice";
 import { barBtn } from "@/components/ui/Popover";
 import { useReader } from "./context";
 
@@ -27,7 +27,6 @@ const RATE_KEY = "gloss:listen-rate";
 
 const useListen = create<ListenState>(() => ({ status: "idle", block: null, rate: 1 }));
 
-const SPOKEN = new Set<Block["type"]>(["p", "h2", "h3", "quote", "li", "note"]);
 
 let ttsConfig: TtsPublic | null = null;
 
@@ -141,8 +140,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
   const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
   let first = true;
   items = [];
-  for (const b of blocks.slice(at)) {
-    if (!SPOKEN.has(b.type)) continue;
+  for (const b of spokenBlocks(blocks.slice(at))) {
     const t = blockText(b).trim();
     if (!t) continue;
     for (const c of passageChunks(t, first)) items.push({ block: b.id, text: c });
@@ -277,6 +275,8 @@ export function ListenBar() {
 
   if (status === "idle") return null;
   const n = block ? ix.numbers.get(block) : undefined;
+  const previous = adjacentSpokenBlock(ix.article.blocks, block, -1);
+  const next = adjacentSpokenBlock(ix.article.blocks, block, 1);
 
   return (
     <div
@@ -300,6 +300,17 @@ export function ListenBar() {
             <Play size={15} fill="currentColor" strokeWidth={0} className="translate-x-px" />
           )}
         </button>
+      )}
+      {status !== "error" && (
+        <>
+          {([{ target: previous, label: "Previous paragraph", Icon: SkipBack }, { target: next, label: "Next paragraph", Icon: SkipForward }]).map(({ target, label, Icon }) => (
+            <button key={label} type="button" aria-label={label} title={label} disabled={!target}
+              onClick={() => target && startListening(ix, target)}
+              className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-lens-hover disabled:opacity-30 disabled:cursor-not-allowed">
+              <Icon size={16} aria-hidden />
+            </button>
+          ))}
+        </>
       )}
       {status === "error" ? (
         <>
