@@ -55,6 +55,7 @@ main()
     else console.error("Import failed.");
     process.exitCode = 1;
   })
-  .finally(async () => {
-    await closeDb().catch(() => undefined);
+  .finally(() => {
+    // Fire-and-forget: the pending close keeps the process alive until it settles.
+    void closeDb().catch(() => undefined);
   });

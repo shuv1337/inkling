@@ -8,6 +8,7 @@ import { importFromUrl, keep } from "@/lib/import";
 import { useStore } from "@/lib/store";
 import type { AddTab } from "./AddPanel";
 import { MarkStack } from "./AgentMarks";
+import { background } from "@/lib/background";
 
 /**
  * Under a shelf that is still nearly empty: three ways to fill it. A dozen
@@ -47,7 +48,7 @@ export function Starter({ count, signedIn, onAdd }: { count: number; signedIn: b
         <div className="min-w-0">
           <p className="starter-title">{count ? "Add a few classics" : "Start with a few classics"}</p>
           <p className="starter-body">A dozen essays people keep coming back to: Hamming, Feynman, Orwell, Graham, Wallace and more.</p>
-          <button type="button" onClick={shelveClassics} disabled={Boolean(busy)} className="starter-btn">
+          <button type="button" onClick={() => background(shelveClassics(), "shelving the classics")} disabled={Boolean(busy)} className="starter-btn">
             {busy ? (
               <>
                 <Loader2 size={15} className="animate-spin" /> Shelving {busy.done} of {busy.total}

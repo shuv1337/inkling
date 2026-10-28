@@ -9,6 +9,7 @@ import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
 import { Answer } from "./Answer";
 import { fmtCost, useReader } from "./context";
+import { background } from "@/lib/background";
 
 /**
  * The brief: a two-sentence gist, the load-bearing claims with citations,
@@ -27,7 +28,7 @@ export function Brief() {
     return (
       <button
         type="button"
-        onClick={() => fetchBrief(ix)}
+        onClick={() => background(fetchBrief(ix), "fetching the brief")}
         className="group mt-6 flex w-full items-center gap-5 rounded-[16px] border border-rule bg-raised/60 py-4 pl-5 pr-4 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:border-rule-strong hover:bg-raised hover:shadow-card active:scale-[0.995]"
       >
         <span className="min-w-0 flex-1">
@@ -62,7 +63,7 @@ export function Brief() {
             </SignedOut>
           </>
         )}
-        <button type="button" onClick={() => fetchBrief(ix)} className="font-medium text-ink underline decoration-rule-strong underline-offset-4">
+        <button type="button" onClick={() => background(fetchBrief(ix), "fetching the brief")} className="font-medium text-ink underline decoration-rule-strong underline-offset-4">
           Try again
         </button>
       </div>
@@ -157,7 +158,7 @@ export function Brief() {
               {modelLabel ?? "Model not recorded"}
               {usage ? ` / ${usage.promptTokens.toLocaleString()} in, ${usage.completionTokens} out / ${fmtCost(usage.costUsd)}` : ""}
             </span>
-            <button type="button" onClick={() => fetchBrief(ix)} className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-1 hover:bg-sunk hover:text-ink">
+            <button type="button" onClick={() => background(fetchBrief(ix), "fetching the brief")} className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-1 hover:bg-sunk hover:text-ink">
               <RotateCcw size={11} /> Redo
             </button>
           </div>
