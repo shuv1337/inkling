@@ -70,7 +70,7 @@ A link to one post on X or Twitter (`/status/<id>` on x.com or twitter.com) is f
 On shuvdev, outside this repo:
 
 - the user systemd unit `gloss.service` runs `npm run start -- -H 127.0.0.1 -p 3100`
-- `tailscale serve` maps `https://shuvdev.tail586a6d.ts.net` to `http://127.0.0.1:3100`, tailnet only, not Funnel
+- `tailscale serve` maps `https://inkling.example` (replace with your private HTTPS origin) to `http://127.0.0.1:3100`, tailnet only, not Funnel
 - `gloss-backup.timer` runs a nightly `pg_dump` of the `gloss` database
 - `.env.local` lives only on that machine
 
@@ -107,7 +107,7 @@ The command listens on `127.0.0.1:1455` (override with `--port` or `OPENAI_REDIR
 
 ```bash
 scp ~/.config/gloss/chatgpt-auth.json shuvdev:~/chatgpt-auth.json
-ssh shuvdev 'cd ~/repos/gloss && npm run chatgpt:import -- ~/chatgpt-auth.json && rm ~/chatgpt-auth.json'
+ssh shuvdev 'cd ~/repos/inkling && npm run chatgpt:import -- ~/chatgpt-auth.json && rm ~/chatgpt-auth.json'
 rm ~/.config/gloss/chatgpt-auth.json
 ```
 
@@ -119,7 +119,7 @@ Import keeps the server's own host id, or creates one. It does not copy the lapt
 ssh -L 1455:127.0.0.1:1455 shuvdev
 ```
 
-On shuvdev, in the repo (`~/repos/gloss`), with `DATABASE_URL` and `AUTH_ENCRYPTION_KEY` already in `.env.local`:
+On shuvdev, in the repo (`~/repos/inkling`), with `DATABASE_URL` and `AUTH_ENCRYPTION_KEY` already in `.env.local`:
 
 ```bash
 npm run chatgpt:login -- --no-browser

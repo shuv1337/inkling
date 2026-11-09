@@ -40,7 +40,7 @@ Some old names stay on purpose. Renaming any of them would lose stored data or b
 | MCP `serverInfo.name` `gloss` | `lib/mcp.ts` | Identity seen by connected clients |
 | Responses tool namespace `gloss` | `lib/responses.ts` | Protocol field in model requests |
 | `~/.config/gloss/chatgpt-auth.json` | `scripts/chatgpt-login.ts`, `scripts/chatgpt-import.ts` | Login hand-off path from the laptop |
-| `gloss.service`, `gloss-backup.timer`, `~/repos/gloss` | shuvdev, outside the repo | The running service |
+| `gloss.service`, `gloss-backup.timer` | shuvdev, outside the repo | The running service; its `WorkingDirectory` drop-in points to `~/repos/inkling` |
 
 "A gloss" is still the word for one answer in the margin, as in `GlossCard`, `useGlosses`, and "Gloss this text". That is product vocabulary, not the old name.
 
