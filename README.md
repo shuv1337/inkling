@@ -91,9 +91,9 @@ On the server, in `.env.local`:
 - `LLM_PROVIDER=chatgpt`
 - `AUTH_ENCRYPTION_KEY`, a 32-byte key as base64 or 64 hex characters. Tokens are encrypted with AES-GCM before they are written. If the key is missing or the wrong length, login and refresh fail with an error that names the variable. They do not start.
 - `DATABASE_URL`, the same Postgres Inkling already uses
-- `LLM_MODEL`, optional. Unset uses `gpt-6.1-sol`, the slug in OpenAI's example. Set a slug the signed-in account can call (`GET /v1/models`, keep `visibility` of `list`, and use `slug`).
+- `LLM_MODEL`, optional. Unset uses `gpt-6-luna`. Set a slug the signed-in account can call (`GET /v1/models`, keep `visibility` of `list`, and use `slug`).
 - `FEATURE_COVERS=0`
-- `VISION_MODEL`, optional. Unset uses `LLM_MODEL`, then the same example slug.
+- `VISION_MODEL`, optional. Unset uses `LLM_MODEL`, then `gpt-6-luna`.
 
 Then `npm run db:migrate`. That adds `openai_auth`.
 

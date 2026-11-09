@@ -179,8 +179,8 @@ export type VisionSettings =
   | { enabled: false; reason: string }
   | { enabled: true; model: string; layoutModel: string; apiKey: string; baseUrl: string; together: boolean; provider: string };
 
-/** The slug in OpenAI's Sign in with ChatGPT example. Override with VISION_MODEL or LLM_MODEL. */
-export const CHATGPT_VISION_MODEL = "gpt-6.1-sol";
+/** The default ChatGPT model for page reading. Override with VISION_MODEL or LLM_MODEL. */
+export const CHATGPT_VISION_MODEL = "gpt-6-luna";
 
 /** Scanned-page reading. On Together the known vision models are the default; elsewhere set VISION_MODEL, or turn it off. ChatGPT uses the plan, not a Together key. */
 export function visionSettings(env: Env = process.env): VisionSettings {

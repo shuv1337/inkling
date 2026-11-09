@@ -4,8 +4,8 @@
  */
 import { isChatgptProvider, isTogetherBase } from "./llm";
 
-/** The model slug in OpenAI's Sign in with ChatGPT example. Set LLM_MODEL to a slug the account can actually call. */
-export const CHATGPT_DEFAULT_MODEL = "gpt-6.1-sol";
+/** The default model on the ChatGPT plan. Set LLM_MODEL to a slug the account can actually call. */
+export const CHATGPT_DEFAULT_MODEL = "gpt-6-luna";
 
 export type ModelEntry = {
   id: string;
