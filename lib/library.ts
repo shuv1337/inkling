@@ -86,6 +86,9 @@ export type Book = {
   author: string;
   year?: number;
   url?: string;
+  source?: string;
+  /** Timestamp of the most recent saved reading position (Progress.at). */
+  lastRead?: number;
   topic: TopicKey;
   minutes: number;
   dek?: string;
