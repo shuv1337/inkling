@@ -47,6 +47,7 @@ export function Library() {
   const [topic, setTopic] = useState<TopicKey | null>(null);
   const [tag, setTag] = useState<TagKey | null>(null);
   const [q, setQ] = useState("");
+  const [tableReset, setTableReset] = useState(0);
   const [open, setOpen] = useState<{ id: string; origin: Origin } | null>(null);
   const [adding, setAdding] = useState<AddTab | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -298,7 +299,7 @@ export function Library() {
               <AddButton onClick={() => setAdding("agent")} />
             </div>
             {fromAgent.length > 0 && (
-              <button type="button" className="lib-news" onClick={() => { go({ view: "table" }); setTag("agent"); }}>
+              <button type="button" className="lib-news" onClick={() => { go({ view: "table" }); setQ(""); setTableReset((key) => key + 1); setTag("agent"); }}>
                 <Glyph k="agent" size={22} />
                 {fromAgent.length} new from your agent since you last looked
               </button>
@@ -337,7 +338,7 @@ export function Library() {
             ) : view === "table" ? (
               <>
                 {hydrated ? (
-                  <LibraryTable books={matchingBooks} sort={prefs.tableSort} onSort={(tableSort) => setLibraryPrefs({ tableSort })} searching={Boolean(q.trim() || tag)} onClearSearch={() => { setQ(""); setTag(null); }} />
+                  <LibraryTable key={tableReset} tag={tag} onClearTag={() => setTag(null)} books={matchingBooks} sort={prefs.tableSort} onSort={(tableSort) => setLibraryPrefs({ tableSort })} searching={Boolean(q.trim() || tag)} onClearSearch={() => { setQ(""); setTag(null); }} />
                 ) : <p className="py-10 text-ink-3" role="status">Loading your library…</p>}
                 {hydrated && own.length < SAMPLES_UNTIL && <Starter count={own.length} signedIn={Boolean(isSignedIn)} onAdd={setAdding} />}
               </>
@@ -380,7 +381,7 @@ export function Library() {
             setAdding(null);
             setTag(null);
             setQ("");
-            setLibraryPrefs({ tableSort: { key: "added", direction: "desc" } });
+            setTableReset((key) => key + 1);
             go({ view: "table" });
           }}
           onRemove={() => {

@@ -3,9 +3,9 @@ import { TOPIC, TAGS, type Book, type TagKey, type TopicKey } from "./library";
 export const TABLE_COLUMNS = [
   { key: "title", label: "Title" },
   { key: "topic", label: "Topic" },
-  { key: "added", label: "Added" },
   { key: "minutes", label: "Length" },
   { key: "status", label: "Status" },
+  { key: "added", label: "Added" },
   { key: "lastRead", label: "Last read" },
 ] as const;
 export type TableColumn = (typeof TABLE_COLUMNS)[number]["key"];

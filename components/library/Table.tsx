@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { TOPIC, TOPICS, type Book, type TopicKey } from "@/lib/library";
+import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
+import { TAGS, TOPIC, TOPICS, type Book, type TagKey, type TopicKey } from "@/lib/library";
 import { bookSource, filterTableBooks, nextTableSort, readingStatus, sortTableBooks, STATUS_LABELS, TABLE_COLUMNS, type ReadingStatus, type TableColumn, type TableSort } from "@/lib/library-table";
+
+import { Glyph } from "./Book";
 
 const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" });
 const fullDateFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Los_Angeles" });
@@ -13,12 +15,14 @@ function DateCell({ at, fallback = "Not yet" }: { at?: number; fallback?: string
   return at ? <time dateTime={new Date(at).toISOString()} title={`${fullDateFormat.format(at)} (Pacific Time)`}>{dateFormat.format(at)}</time> : <span>{fallback}</span>;
 }
 
-export function LibraryTable({ books, sort, onSort, onClearSearch, searching }: {
+export function LibraryTable({ books, sort, onSort, onClearSearch, searching, tag, onClearTag }: {
   books: Book[];
   sort: TableSort;
   onSort: (sort: TableSort) => void;
   onClearSearch: () => void;
   searching: boolean;
+  tag: TagKey | null;
+  onClearTag: () => void;
 }) {
   const [status, setStatus] = useState<ReadingStatus | "all">("all");
   const [topic, setTopic] = useState<TopicKey | "all">("all");
@@ -29,12 +33,18 @@ export function LibraryTable({ books, sort, onSort, onClearSearch, searching }: 
 
   return (
     <section className="lib-table-view" aria-label="Library table">
-      <div className="lib-table-filters" role="group" aria-label="Reading status">
+      <div className="lib-table-controls">
+      <div className="lib-table-filters">
+        <div className="lib-table-status-filters" role="group" aria-label="Reading status">
         {(["all", "unread", "reading", "finished"] as const).map((key) => (
           <button key={key} type="button" className="lib-chip" aria-pressed={status === key} onClick={() => setStatus(key)}>
             {key === "all" ? "All" : STATUS_LABELS[key]}
           </button>
         ))}
+        </div>
+        <p className="lib-table-count" role="status"><span className="sr-only">{activeFilters ? "Matching texts: " : "Texts: "}</span>{rows.length}<span className="lib-table-count-label"> {rows.length === 1 ? "text" : "texts"}</span></p>
+        {tag && <button type="button" className="lib-chip lib-table-tag" aria-label={`Clear ${TAGS.find((t) => t.key === tag)?.label} filter`} onClick={onClearTag}><Glyph k={tag} size={16} />{TAGS.find((t) => t.key === tag)?.label}<X size={13} aria-hidden /></button>}
+        {activeFilters && <button className="lib-table-reset" type="button" onClick={() => { setStatus("all"); setTopic("all"); onClearSearch(); }}>Clear filters</button>}
       </div>
       <div className="lib-table-toolbar">
         <label className="lib-table-topic">
@@ -44,26 +54,23 @@ export function LibraryTable({ books, sort, onSort, onClearSearch, searching }: 
             {TOPICS.filter((t) => t.key === topic || books.some((b) => b.topic === t.key)).map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
           </select>
         </label>
-        <div className="lib-table-mobile-sort">
-          <label>
+          <label className="lib-table-mobile-sort">
             <span className="sr-only">Sort by</span>
             <select aria-label="Sort by" value={sort.key} onChange={(e) => sortBy(e.target.value as TableColumn)}>
               {TABLE_COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => sortBy(sort.key)} aria-label={`Sort ${sort.direction === "asc" ? "descending" : "ascending"}`} title={sort.direction === "asc" ? "Ascending" : "Descending"}>
+          <button className="lib-table-direction" type="button" onClick={() => sortBy(sort.key)} aria-label={`Sort ${sort.direction === "asc" ? "descending" : "ascending"}`} title={sort.direction === "asc" ? "Ascending" : "Descending"}>
             <Direction size={16} aria-hidden />
           </button>
-        </div>
-        <p className="lib-table-count" role="status">{rows.length} {rows.length === 1 ? "text" : "texts"}{activeFilters ? " match" : ""}</p>
-        {activeFilters && <button className="lib-table-reset" type="button" onClick={() => { setStatus("all"); setTopic("all"); onClearSearch(); }}>Clear filters</button>}
+      </div>
       </div>
       <table className="lib-table" role="table" data-sort={sort.key}>
         <caption className="sr-only">Saved texts, sorted by {TABLE_COLUMNS.find((c) => c.key === sort.key)?.label}, {sort.direction === "asc" ? "ascending" : "descending"}</caption>
         <thead role="rowgroup">
           <tr role="row">
             {TABLE_COLUMNS.map((c) => (
-              <th key={c.key} scope="col" role="columnheader" aria-label={c.label} aria-sort={sort.key === c.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+              <th key={c.key} className={`lib-table-col-${c.key}`} scope="col" role="columnheader" aria-label={c.label} aria-sort={sort.key === c.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
                 <button type="button" onClick={() => sortBy(c.key)}>{c.label}{sort.key === c.key ? <Direction size={14} aria-hidden /> : <ArrowUpDown size={13} aria-hidden className="lib-table-sort-idle" />}</button>
               </th>
             ))}
@@ -79,13 +86,13 @@ export function LibraryTable({ books, sort, onSort, onClearSearch, searching }: 
                   <Link href={`/read/${book.id}`} prefetch={false}>{book.title}</Link>
                   <span className="lib-table-source">{bookSource(book)}{book.sample && " · Sample"}</span>
                 </td>
-                <td className="lib-table-topic-cell" role="cell">{TOPIC[book.topic].name}</td>
-                <td className="lib-table-added" role="cell"><span className="lib-table-mobile-label">Added </span><DateCell at={book.added} fallback={book.sample ? "Sample" : "Unknown"} /></td>
+                <td className="lib-table-topic-cell" role="cell"><span><Glyph k={book.topic} size={16} />{TOPIC[book.topic].name}</span></td>
                 <td className="lib-table-length" role="cell">{book.minutes} min<span className="lib-table-mobile-label"> read</span></td>
                 <td className="lib-table-status" role="cell">
                   <span>{STATUS_LABELS[state]}{state === "reading" && <span className="lib-table-pct"> {pct}%</span>}</span>
                   {state !== "unread" && <span className="lib-table-progress" aria-hidden><span style={{ width: `${pct}%` }} /></span>}
                 </td>
+                <td className="lib-table-added" role="cell">{Boolean(book.added) && <span className="lib-table-mobile-label">Added </span>}<DateCell at={book.added} fallback={book.sample ? "Sample" : "Unknown"} /></td>
                 <td className="lib-table-last" role="cell"><span className="lib-table-mobile-label">Last read </span><DateCell at={book.lastRead} /></td>
               </tr>
             );

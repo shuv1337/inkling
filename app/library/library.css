@@ -306,6 +306,17 @@
   background: var(--bg-raised);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
 }
+@media (max-width: 639px) {
+  .add-panel header > button { flex-shrink: 0; }
+  .add-panel .lib-sort { min-width: 0; }
+  .add-panel .lib-sort button { height: auto; min-height: 44px; padding: 6px 8px; line-height: 1.2; font-size: 12px; }
+  .add-panel .lib-sort[role="tablist"] { flex: 1; }
+  .add-panel .lib-sort[role="tablist"] button { flex: 1; }
+  .add-panel .lib-sort[role="radiogroup"] button { white-space: nowrap; }
+}
+@media (max-width: 359px) {
+  .add-panel .lib-sort[role="radiogroup"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; border-radius: 20px; }
+}
 
 .lib-chips {
   display: flex;
@@ -370,81 +381,6 @@
   margin: 0;
   padding: 0;
   animation: none;
-}
-
-/* The shelf's filters: one line that scrolls, fading where there is more. */
-.lib-chip-row {
-  position: relative;
-  margin: 14px -16px 0;
-  animation: rise 0.7s 0.2s var(--ease-out) both;
-}
-.lib-chip-row .lib-chips {
-  flex-wrap: nowrap;
-  margin: 0;
-  padding: 2px 16px 4px;
-  animation: none;
-}
-@media (min-width: 640px) {
-  .lib-chip-row {
-    margin: 16px 0 0;
-  }
-  .lib-chip-row .lib-chips {
-    padding: 2px 0 4px;
-  }
-}
-.lib-chip-row[data-r] .lib-chips {
-  mask-image: linear-gradient(90deg, #000 calc(100% - 80px), transparent);
-}
-.lib-chip-row[data-l] .lib-chips {
-  mask-image: linear-gradient(90deg, transparent, #000 80px);
-}
-.lib-chip-row[data-l][data-r] .lib-chips {
-  mask-image: linear-gradient(90deg, transparent, #000 80px, #000 calc(100% - 80px), transparent);
-}
-.lib-chip-page {
-  position: absolute;
-  top: calc(50% - 1px);
-  z-index: 1;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--rule);
-  background: var(--bg-raised);
-  color: var(--ink-2);
-  box-shadow: var(--shadow-card);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) scale(0.88);
-  transition: opacity 0.2s ease, transform 0.3s var(--ease-out), color 0.2s ease;
-}
-.lib-chip-page.is-l {
-  left: 0;
-}
-.lib-chip-page.is-r {
-  right: 0;
-}
-.lib-chip-row[data-l]:hover .lib-chip-page.is-l,
-.lib-chip-row[data-r]:hover .lib-chip-page.is-r {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(-50%);
-}
-.lib-chip-page:hover {
-  color: var(--ink);
-}
-@media (hover: none) {
-  .lib-chip-page {
-    display: none;
-  }
-}
-.lib-hint {
-  margin-top: 8px;
-  text-align: center;
-  font-size: 12.5px;
-  color: var(--ink-4);
-  animation: fade 1s 1.4s both;
 }
 
 /* ---------- spines ---------- */
