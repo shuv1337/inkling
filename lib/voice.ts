@@ -1,4 +1,4 @@
-import { blockText, type Block } from "./article";
+import { blockText, type Block, type BriefData } from "./article";
 
 /**
  * How a passage is split before it is spoken. Safe on the client: no keys
@@ -34,7 +34,35 @@ export function spokenBlocks(blocks: Block[]): Block[] {
 }
 
 export function adjacentSpokenBlock(blocks: Block[], current: string | null, direction: -1 | 1): string | null {
-  const spoken = spokenBlocks(blocks);
-  const at = spoken.findIndex((b) => b.id === current);
+  return adjacentUnit(spokenBlocks(blocks), current, direction);
+}
+
+/** The passage before or after the current one, skipping any with nothing to say. */
+export function adjacentUnit(units: { id: string; text?: string }[], current: string | null, direction: -1 | 1): string | null {
+  const spoken = units.filter((u) => u.text !== "");
+  const at = spoken.findIndex((u) => u.id === current);
   return at < 0 ? null : spoken[at + direction]?.id ?? null;
+}
+
+/** A passage to speak, with the id the highlight follows. */
+export type SpokenUnit = { id: string; text: string };
+
+/** Model Markdown as it should sound: no key-answer marks, citations, emphasis or list markers. */
+export function speakable(s: string): string {
+  return s
+    .replace(/==/g, "")
+    .replace(/\s?\[\s*¶[^\]]{0,60}\]/g, "")
+    .replace(/\s?\[\d{1,2}(?:\s*,\s*\d{1,2})*\]/g, "")
+    .replace(/^\s*([-*•]|\d+[.)])\s+/gm, "")
+    .replace(/[*`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The brief as it is read aloud: the gist, then each claim and caveat, with the headings spoken once. */
+export function briefUnits(data: BriefData): SpokenUnit[] {
+  const out: SpokenUnit[] = [{ id: "brief:gist", text: speakable(data.gist) }];
+  data.claims.forEach((c, i) => out.push({ id: `brief:claim:${i}`, text: `${i === 0 ? "Key claims. " : ""}${speakable(c.text)}` }));
+  (data.caveats ?? []).forEach((c, i) => out.push({ id: `brief:caveat:${i}`, text: `${i === 0 ? "Keep in mind. " : ""}${speakable(c.text)}` }));
+  return out.filter((u) => u.text);
 }

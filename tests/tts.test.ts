@@ -104,3 +104,20 @@ test("paragraph navigation skips unspoken blocks and stops at article boundaries
   assert.equal(adjacentSpokenBlock(blocks, "last", 1), null);
   assert.equal(adjacentSpokenBlock(blocks, null, 1), null);
 });
+
+test("the brief is read as plain speech, with headings spoken once", async () => {
+  const { briefUnits, speakable, adjacentUnit } = await import("../lib/voice");
+  assert.equal(speakable("The ==key== point [¶3-5], **bold** and `code` [1, 2]."), "The key point, bold and code.");
+  const units = briefUnits({
+    gist: "A gist.",
+    claims: [{ text: "First claim.", cite: 2 }, { text: "Second claim.", cite: 4 }],
+    caveats: [{ text: "A caveat.", cite: 6 }],
+    sections: [{ title: "Intro", start: 1 }],
+  });
+  assert.deepEqual(units.map((u) => u.id), ["brief:gist", "brief:claim:0", "brief:claim:1", "brief:caveat:0"]);
+  assert.equal(units[1].text, "Key claims. First claim.");
+  assert.equal(units[2].text, "Second claim.");
+  assert.equal(units[3].text, "Keep in mind. A caveat.");
+  assert.equal(adjacentUnit(units, "brief:claim:1", 1), "brief:caveat:0");
+  assert.equal(adjacentUnit(units, "brief:gist", -1), null);
+});

@@ -8,6 +8,7 @@ import { fetchBrief, openKeyMenu } from "@/lib/ask";
 import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
 import { Answer } from "./Answer";
+import { BriefListenButton, useListenBriefItem } from "./Listen";
 import { fmtCost, useReader } from "./context";
 import { background } from "@/lib/background";
 
@@ -21,6 +22,8 @@ export function Brief() {
   const open = useStore((s) => s.briefOpen);
   const setUI = useStore((s) => s.setUI);
   const hydrated = useStore((s) => s.hydrated);
+  const reading = useListenBriefItem();
+  const spoken = (id: string) => ({ "data-listen": id, "data-speaking": reading === id ? "" : undefined });
 
   if (!hydrated) return <div className="mt-6 h-[72px]" />;
 
@@ -74,22 +77,25 @@ export function Brief() {
   const caveats = data.caveats ?? [];
   return (
     <section aria-label="Brief" className="mt-6 rounded-[16px] border border-rule bg-raised/60 px-5">
-      <button
-        type="button"
-        onClick={() => setUI({ briefOpen: !open })}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2.5 py-3.5 text-left"
-      >
-        <span className="text-[13.5px] font-medium text-ink">Brief</span>
-        <span className="text-[13px] text-ink-3">
-          {data.sections.length} parts {"\u00b7"} {data.claims.length} claims
-          {caveats.length > 0 && ` \u00b7 ${caveats.length} ${caveats.length === 1 ? "caveat" : "caveats"}`}
-        </span>
-        <ChevronDown size={16} className={`ml-auto text-ink-3 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setUI({ briefOpen: !open })}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2.5 py-3.5 text-left"
+        >
+          <span className="text-[13.5px] font-medium text-ink">Brief</span>
+          <span className="text-[13px] text-ink-3">
+            {data.sections.length} parts {"\u00b7"} {data.claims.length} claims
+            {caveats.length > 0 && ` \u00b7 ${caveats.length} ${caveats.length === 1 ? "caveat" : "caveats"}`}
+          </span>
+          <ChevronDown size={16} className={`ml-auto text-ink-3 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+        </button>
+        <BriefListenButton data={data} onStart={() => setUI({ briefOpen: true })} />
+      </div>
       {open && (
         <div className="rise border-t border-rule pb-5 pt-4" style={{ animationDuration: "0.45s" }}>
-          <div className="gloss-body !text-[16px] !leading-[1.6] text-pretty">
+          <div {...spoken("brief:gist")} className="brief-spoken gloss-body !text-[16px] !leading-[1.6] text-pretty">
             <Answer text={data.gist} />
           </div>
 
@@ -98,7 +104,7 @@ export function Brief() {
               <h3 className="mb-2.5 mt-6 text-[12.5px] font-medium text-ink-3">Key claims</h3>
               <ol className="space-y-2.5">
                 {data.claims.map((c, i) => (
-                  <li key={i} className="rise grid grid-cols-[1.4rem_minmax(0,1fr)] text-[14.5px] leading-[1.5] text-ink" style={{ animationDuration: "0.5s", animationDelay: `${120 + i * 60}ms` }}>
+                  <li key={i} {...spoken(`brief:claim:${i}`)} className="brief-spoken rise grid grid-cols-[1.4rem_minmax(0,1fr)] text-[14.5px] leading-[1.5] text-ink" style={{ animationDuration: "0.5s", animationDelay: `${120 + i * 60}ms` }}>
                     <span className="font-serif text-[14px] leading-[1.55] tabular-nums text-ink-4">{i + 1}</span>
                     <span className="gloss-body !text-[14.5px]">
                       <Answer text={c.cite ? `${c.text} [¶${c.cite}]` : c.text} />
@@ -114,7 +120,7 @@ export function Brief() {
               <h3 className="mb-2.5 mt-6 text-[12.5px] font-medium text-ink-3">Keep in mind</h3>
               <ul className="space-y-2.5">
                 {caveats.map((c, i) => (
-                  <li key={i} className="rise grid grid-cols-[1.4rem_minmax(0,1fr)] text-[14.5px] leading-[1.5] text-ink-2" style={{ animationDuration: "0.5s", animationDelay: `${200 + i * 60}ms` }}>
+                  <li key={i} {...spoken(`brief:caveat:${i}`)} className="brief-spoken rise grid grid-cols-[1.4rem_minmax(0,1fr)] text-[14.5px] leading-[1.5] text-ink-2" style={{ animationDuration: "0.5s", animationDelay: `${200 + i * 60}ms` }}>
                     <span aria-hidden className="mt-[0.6em] size-[5px] rounded-full bg-rubric/70" />
                     <span className="gloss-body !text-[14.5px]">
                       <Answer text={c.cite ? `${c.text} [¶${c.cite}]` : c.text} />

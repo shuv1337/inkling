@@ -589,6 +589,23 @@ kbd,
   animation: grow-y 0.25s var(--ease-out);
 }
 
+/* The brief passage being read aloud carries the same mark as the paragraph cursor. */
+.brief-spoken {
+  position: relative;
+}
+
+.brief-spoken[data-speaking]::before {
+  content: "";
+  position: absolute;
+  left: -0.85rem;
+  top: 0.25em;
+  bottom: 0.25em;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--rubric);
+  animation: grow-y 0.25s var(--ease-out);
+}
+
 /*
  * Focus mode: the title and the text, nothing else. The rail, numbers,
  * margin, byline, gloss, composer and footer all go; marks lose their ink;

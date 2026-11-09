@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { Headphones, LoaderCircle, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
@@ -9,7 +9,8 @@ import { openKeyMenu, readApiKey } from "@/lib/ask";
 import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
 import { loadTtsPublic, savedVoice, type TtsPublic } from "@/lib/tts-client";
-import { adjacentSpokenBlock, passageChunks, spokenBlocks } from "@/lib/voice";
+import { adjacentUnit, briefUnits, passageChunks, spokenBlocks, type SpokenUnit } from "@/lib/voice";
+import type { BriefData } from "@/lib/article";
 import { barBtn } from "@/components/ui/Popover";
 import { useReader } from "./context";
 
@@ -20,12 +21,17 @@ import { useReader } from "./context";
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; rate: number; error?: string; needKey?: boolean };
+/** What is being read: the text itself, or the brief above it. */
+type Source = "text" | "brief";
+type ListenState = { status: Status; source: Source; block: string | null; rate: number; error?: string; needKey?: boolean };
 
 const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
 const RATE_KEY = "gloss:listen-rate";
 
-const useListen = create<ListenState>(() => ({ status: "idle", block: null, rate: 1 }));
+const useListen = create<ListenState>(() => ({ status: "idle", source: "text", block: null, rate: 1 }));
+
+/** The brief passage being read, so the brief can mark it. */
+export const useListenBriefItem = () => useListen((s) => (s.source === "brief" ? s.block : null));
 
 
 let ttsConfig: TtsPublic | null = null;
@@ -54,6 +60,7 @@ function silence(): string {
 
 /* ---------------- the engine: one voice at a time ---------------- */
 
+let units: SpokenUnit[] = [];
 let items: { block: string; text: string }[] = [];
 let idx = 0;
 let session = 0;
@@ -126,6 +133,19 @@ async function playAt(i: number, s: number) {
 }
 
 export function startListening(ix: DocIndex, fromBlock: string | null) {
+  const units = spokenBlocks(ix.article.blocks).map((b) => ({ id: b.id, text: blockText(b).trim() }));
+  const at = fromBlock ? ix.article.blocks.findIndex((b) => b.id === fromBlock) : -1;
+  // From a block that is not spoken itself (an image, say), start at the next one that is.
+  const from = at < 0 ? null : spokenBlocks(ix.article.blocks.slice(at))[0]?.id ?? null;
+  play(ix, "text", units, from);
+}
+
+/** Read the brief aloud, from the gist or from one of its passages. */
+export function startListeningBrief(ix: DocIndex, data: BriefData, from: string | null = null) {
+  play(ix, "brief", briefUnits(data), from);
+}
+
+function play(ix: DocIndex, source: Source, all: SpokenUnit[], from: string | null) {
   stopListening();
   if (ttsConfig && !ttsConfig.enabled) {
     useListen.setState({ status: "error", error: ttsConfig.reason || "Reading aloud is turned off." });
@@ -136,17 +156,15 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
     useListen.setState({ status: "error", needKey: true, error: "Reading aloud needs an API key." });
     return;
   }
-  const blocks = ix.article.blocks;
-  const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
-  let first = true;
+  const at = Math.max(0, from ? all.findIndex((u) => u.id === from) : 0);
+  units = all;
   items = [];
-  for (const b of spokenBlocks(blocks.slice(at))) {
-    const t = blockText(b).trim();
-    if (!t) continue;
-    for (const c of passageChunks(t, first)) items.push({ block: b.id, text: c });
-    first = false;
+  for (const u of all.slice(at)) {
+    if (!u.text) continue;
+    for (const c of passageChunks(u.text, !items.length)) items.push({ block: u.id, text: c });
   }
   if (!items.length) return;
+  useListen.setState({ source });
 
   audio ??= new Audio();
   // Only a spoken clip ending moves on; the unlocking silence ending must not.
@@ -162,11 +180,17 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
     if (RATES.includes(r)) useListen.setState({ rate: r });
   } catch {}
   if ("mediaSession" in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({ title: ix.article.title, artist: ix.article.author ?? ix.article.source ?? "Inkling" });
+    const title = source === "brief" ? `Brief: ${ix.article.title}` : ix.article.title;
+    navigator.mediaSession.metadata = new MediaMetadata({ title, artist: ix.article.author ?? ix.article.source ?? "Inkling" });
     navigator.mediaSession.setActionHandler("play", () => toggleListening());
     navigator.mediaSession.setActionHandler("pause", () => toggleListening());
   }
   void playAt(0, s);
+}
+
+/** Move to another passage of whatever is being read. */
+function skipTo(ix: DocIndex, id: string) {
+  play(ix, useListen.getState().source, units, id);
 }
 
 export function stopListening() {
@@ -181,7 +205,8 @@ export function stopListening() {
   release(Infinity);
   clips.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, error: undefined, needKey: false });
+  units = [];
+  useListen.setState({ status: "idle", source: "text", block: null, error: undefined, needKey: false });
 }
 
 function toggleListening() {
@@ -210,11 +235,12 @@ function cycleRate() {
 
 /* ---------------- the controls ---------------- */
 
-/** In the top bar, only when Listen is on in settings. Starts from the paragraph you are on. */
-export function ListenButton({ from }: { from: () => string | null }) {
-  const { ix } = useReader();
+/** A brief passage on the page, marked with data-listen. */
+const briefItemEl = (id: string) => document.querySelector<HTMLElement>(`[data-listen="${CSS.escape(id)}"]`);
+
+/** Listen is on in settings and the server can speak. */
+function useListenAvailable(): boolean {
   const on = useStore((s) => s.settings.listen);
-  const status = useListen((s) => s.status);
   const [enabled, setEnabled] = useState(true);
   useEffect(() => {
     if (!on) return;
@@ -223,7 +249,38 @@ export function ListenButton({ from }: { from: () => string | null }) {
       setEnabled(cfg.enabled);
     });
   }, [on]);
-  if (!on || !enabled) return null;
+  return on && enabled;
+}
+
+/** In the brief's header: reads the gist, the claims and the caveats. */
+export function BriefListenButton({ data, onStart }: { data: BriefData; onStart?: () => void }) {
+  const { ix } = useReader();
+  const reading = useListen((s) => s.status !== "idle" && s.source === "brief");
+  if (!useListenAvailable()) return null;
+  const label = reading ? "Stop reading the brief" : "Read the brief aloud";
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (reading) return stopListening();
+        onStart?.();
+        startListeningBrief(ix, data);
+      }}
+      aria-label={label}
+      aria-pressed={reading}
+      title={label}
+      className={`grid size-8 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:bg-sunk hover:text-ink ${reading ? "bg-sunk text-ink" : ""}`}
+    >
+      <Headphones size={15} strokeWidth={1.8} aria-hidden />
+    </button>
+  );
+}
+
+/** In the top bar, only when Listen is on in settings. Starts from the paragraph you are on. */
+export function ListenButton({ from }: { from: () => string | null }) {
+  const { ix } = useReader();
+  const status = useListen((s) => s.status);
+  if (!useListenAvailable()) return null;
   const active = status !== "idle";
   return (
     <button
@@ -248,7 +305,7 @@ export function ListenButton({ from }: { from: () => string | null }) {
 /** While the voice is reading: a small bar just above the question box, and the cursor on the paragraph being read. */
 export function ListenBar() {
   const { ix, jumpToBlock } = useReader();
-  const { status, block, rate, error, needKey } = useListen();
+  const { status, source, block, rate, error, needKey } = useListen();
   const on = useStore((s) => s.settings.listen);
   const setUI = useStore((s) => s.setUI);
   const prev = useRef<string | null>(null);
@@ -259,24 +316,31 @@ export function ListenBar() {
     if (!on) stopListening();
   }, [on]);
 
+  const show = useCallback(
+    (id: string) => (source === "brief" ? briefItemEl(id)?.scrollIntoView({ block: "center", behavior: "smooth" }) : jumpToBlock(id, { flash: false })),
+    [source, jumpToBlock],
+  );
+
   // Follow the voice, but only while the reader is following too.
   useEffect(() => {
     if (!block) {
       prev.current = null;
       return;
     }
-    setUI({ cursor: block });
-    const was = prev.current ? blockEl(prev.current)?.getBoundingClientRect() : null;
+    const el = (id: string) => (source === "brief" ? briefItemEl(id) : blockEl(id));
+    if (source === "text") setUI({ cursor: block });
+    const was = prev.current ? el(prev.current)?.getBoundingClientRect() : null;
     const following = !was || (was.bottom > 0 && was.top < window.innerHeight);
-    const r = blockEl(block)?.getBoundingClientRect();
-    if (following && r && (r.top < 80 || r.bottom > window.innerHeight * 0.8)) jumpToBlock(block, { flash: false });
+    const r = el(block)?.getBoundingClientRect();
+    if (following && r && (r.top < 80 || r.bottom > window.innerHeight * 0.8)) show(block);
     prev.current = block;
-  }, [block, jumpToBlock, setUI]);
+  }, [block, source, show, setUI]);
 
   if (status === "idle") return null;
-  const n = block ? ix.numbers.get(block) : undefined;
-  const previous = adjacentSpokenBlock(ix.article.blocks, block, -1);
-  const next = adjacentSpokenBlock(ix.article.blocks, block, 1);
+  const n = block && source === "text" ? ix.numbers.get(block) : undefined;
+  const previous = adjacentUnit(units, block, -1);
+  const next = adjacentUnit(units, block, 1);
+  const label = source === "brief" ? "Reading brief" : n ? `Reading ¶${n}` : "Reading";
 
   return (
     <div
@@ -305,7 +369,7 @@ export function ListenBar() {
         <>
           {([{ target: previous, label: "Previous paragraph", Icon: SkipBack }, { target: next, label: "Next paragraph", Icon: SkipForward }]).map(({ target, label, Icon }) => (
             <button key={label} type="button" aria-label={label} title={label} disabled={!target}
-              onClick={() => target && startListening(ix, target)}
+              onClick={() => target && skipTo(ix, target)}
               className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-lens-hover disabled:opacity-30 disabled:cursor-not-allowed">
               <Icon size={16} aria-hidden />
             </button>
@@ -333,11 +397,11 @@ export function ListenBar() {
       ) : (
         <button
           type="button"
-          onClick={() => block && jumpToBlock(block, { flash: false })}
+          onClick={() => block && show(block)}
           className="h-9 rounded-full px-2.5 text-[13px] tabular-nums text-lens-fg/85 transition-colors hover:bg-lens-hover hover:text-lens-fg"
-          aria-label={n ? `Reading paragraph ${n}. Show it.` : "Show where it is reading"}
+          aria-label={source === "brief" ? "Reading the brief. Show where." : n ? `Reading paragraph ${n}. Show it.` : "Show where it is reading"}
         >
-          {n ? `Reading ¶${n}` : "Reading"}
+          {label}
         </button>
       )}
       {!needKey && (
