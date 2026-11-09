@@ -3,13 +3,13 @@
 import { useAccount } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
-import { ChevronLeft, ChevronRight, LayoutGrid, Library as LibraryIcon, Search, X } from "lucide-react";
+import { ChevronLeft, LayoutGrid, Table2, Search, X } from "lucide-react";
 import { TopBar } from "@/components/ui/TopBar";
 import { readingMinutes, tidyTitle, wordCount } from "@/lib/article";
 import { forgetCover, paintAll } from "@/lib/covers";
 import { SAMPLE_SHELF } from "@/lib/classics";
-import { SORTS, sortBooks, TAGS, TOPIC, TOPICS, topicOf, type Book, type Sort, type TagKey, type Topic, type TopicKey } from "@/lib/library";
-import { hideSample, useLibraryPrefs } from "@/lib/library-prefs";
+import { TAGS, TOPIC, TOPICS, topicOf, type Book, type TagKey, type Topic, type TopicKey } from "@/lib/library";
+import { hideSample, setLibraryPrefs, useLibraryPrefs } from "@/lib/library-prefs";
 import { SAMPLES } from "@/lib/samples";
 import { applySettings } from "@/lib/settings";
 import { backfill } from "@/lib/shelving";
@@ -19,23 +19,18 @@ import { AddButton, AddPanel, type AddTab } from "./AddPanel";
 import { Arrivals, type Wave } from "./Arrivals";
 import { Glyph } from "./Book";
 import { BookOpen, type Origin } from "./BookOpen";
-import { Shelf } from "./Shelf";
+import { LibraryTable } from "./Table";
+import { matchesLibraryBook, readingStatus } from "@/lib/library-table";
 import { Starter } from "./Starter";
 import { TopicGrid, TopicPage } from "./Topics";
 
-type View = "shelf" | "topics";
+type View = "table" | "topics";
 
 const SEEN_KEY = "gloss:library-seen";
 /** Samples stay on the shelf until it has this many texts of your own, or for good once opened, unless taken off. */
 const SAMPLES_UNTIL = 6;
 
-/**
- * Your library: everything on your shelf, sorted onto topics. The bookcase
- * arranges by topic, recency, colour or length; the topics view opens each
- * subject into a display of covers. Any book comes off the shelf into your
- * hands, and from there into the reader. New texts, yours or your agent's,
- * drop onto the shelf as they arrive.
- */
+/** A searchable reading list, with illustrated topics for browsing. */
 export function Library() {
   const router = useRouter();
   const { signedIn: isSignedIn, firstName, name } = useAccount();
@@ -48,15 +43,13 @@ export function Library() {
   const removeFromLibrary = useStore((s) => s.removeFromLibrary);
   const prefs = useLibraryPrefs();
 
-  const [view, setView] = useState<View>("shelf");
+  const view = prefs.view;
   const [topic, setTopic] = useState<TopicKey | null>(null);
-  const [only, setOnly] = useState<TopicKey | null>(null);
   const [tag, setTag] = useState<TagKey | null>(null);
-  const [sort, setSort] = useState<Sort>("topic");
   const [q, setQ] = useState("");
+  const [tableReset, setTableReset] = useState(0);
   const [open, setOpen] = useState<{ id: string; origin: Origin } | null>(null);
   const [adding, setAdding] = useState<AddTab | null>(null);
-  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
   const [leaving, setLeaving] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const known = useRef<Set<string> | null>(null);
@@ -103,9 +96,6 @@ export function Library() {
     const added = [...ids].filter((id) => !known.current!.has(id));
     known.current = ids;
     if (!added.length) return;
-    setFresh((f) => new Set([...f, ...added]));
-    // Each arrival's own timer, so a quick run of imports never leaves the early ones marked.
-    for (const id of added) setTimeout(() => setFresh((f) => (f.has(id) ? new Set([...f].filter((x) => x !== id)) : f)), 2600);
 
     // And they gather on the arrivals card: one card per run, kept open while more keep coming.
     const items = library.filter((x) => added.includes(x.id) && x.origin !== "sample");
@@ -143,6 +133,8 @@ export function Library() {
       author: bylineOf(x),
       year: x.year,
       url: x.sourceUrl,
+      source: x.source,
+      lastRead: hydrated ? progress[x.id]?.at : undefined,
       topic: topicOf(x.topic),
       minutes: readingMinutes(x.words),
       dek: x.dek,
@@ -170,6 +162,7 @@ export function Library() {
       pct: read(a.id),
       highlights: marks(a.id),
       added: 0,
+      lastRead: hydrated ? progress[a.id]?.at : undefined,
       cover: SAMPLE_SHELF[a.id]?.cover,
       agent: false,
       sample: true,
@@ -179,17 +172,8 @@ export function Library() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [library, progress, highlights, hydrated, prefs.hiddenSamples]);
 
-  const sorted = useMemo(() => sortBooks(books, sort), [books, sort]);
-
-  const match = useCallback(
-    (b: Book) => {
-      const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
-      const t = tag ? TAGS.find((x) => x.key === tag)! : null;
-      return (!t || t.test(b)) && words.every((w) => `${b.title} ${b.author} ${TOPIC[b.topic].name} ${b.tags.join(" ")} ${b.year ?? ""}`.toLowerCase().includes(w));
-    },
-    [q, tag]
-  );
-  const shown = useMemo(() => new Set(sorted.filter((b) => (!only || b.topic === only) && match(b)).map((b) => b.id)), [sorted, only, match]);
+  const match = useCallback((b: Book) => matchesLibraryBook(b, q, tag), [q, tag]);
+  const matchingBooks = useMemo(() => books.filter(match), [books, match]);
 
   const topics = useMemo(
     () => TOPICS.map((t) => ({ topic: t, books: books.filter((b) => b.topic === t.key).sort((a, b) => b.added - a.added) })).filter((x) => x.books.length),
@@ -202,8 +186,8 @@ export function Library() {
       count: books.length,
       topics: topics.filter((t) => t.topic.key !== "unsorted").length,
       hours: Math.max(1, Math.round(mins / 60)),
-      reading: books.filter((b) => b.pct > 0 && b.pct < 1).length,
-      read: books.filter((b) => b.pct >= 1).length,
+      reading: books.filter((b) => readingStatus(b) === "reading").length,
+      read: books.filter((b) => readingStatus(b) === "finished").length,
     };
   }, [books, topics]);
 
@@ -211,10 +195,9 @@ export function Library() {
 
   const go = useCallback((to: { view: View; topic?: TopicKey | null }) => {
     startTransition(() => {
-      setView(to.view);
+      setLibraryPrefs({ view: to.view });
       setTopic(to.topic ?? null);
-      setQ("");
-      if (to.view === "shelf") setTag(null);
+      setTag(null);
     });
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
@@ -273,7 +256,7 @@ export function Library() {
     });
 
   return (
-    <div className={`library relative z-[1] min-h-dvh transition-[opacity,filter] duration-300 ${leaving ? "opacity-0 blur-[2px]" : ""}`}>
+    <div data-view={view} className={`library relative z-[1] min-h-dvh transition-[opacity,filter] duration-300 ${leaving ? "opacity-0 blur-[2px]" : ""}`}>
       <div className="lib-top" data-scrolled={scrolled || undefined}>
         <TopBar here="library" onLibrary={() => go({ view: topic ? "topics" : view })} />
       </div>
@@ -291,14 +274,14 @@ export function Library() {
                       <span>
                         <b>{stats.count}</b> {stats.count === 1 ? "text" : "texts"}
                       </span>
-                      {stats.topics > 0 && (
+                      {view === "topics" && stats.topics > 0 && (
                         <span>
                           <b>{stats.topics}</b> {stats.topics === 1 ? "topic" : "topics"}
                         </span>
                       )}
-                      <span>
+                      {view === "topics" && <span>
                         <b>{stats.hours}</b> {stats.hours === 1 ? "hour" : "hours"} of reading
-                      </span>
+                      </span>}
                       {stats.reading > 0 && (
                         <span>
                           <b>{stats.reading}</b> in progress
@@ -316,7 +299,7 @@ export function Library() {
               <AddButton onClick={() => setAdding("agent")} />
             </div>
             {fromAgent.length > 0 && (
-              <button type="button" className="lib-news" onClick={() => (setTag("agent"), setOnly(null), go({ view: "shelf" }))}>
+              <button type="button" className="lib-news" onClick={() => { go({ view: "table" }); setQ(""); setTableReset((key) => key + 1); setTag("agent"); }}>
                 <Glyph k="agent" size={22} />
                 {fromAgent.length} new from your agent since you last looked
               </button>
@@ -335,32 +318,7 @@ export function Library() {
           <div className="lib-tools">
             <ViewSwitch view={view} onChange={(v) => go({ view: v })} />
             {searchBox}
-            {view === "shelf" && (
-              <div className="lib-sort" role="radiogroup" aria-label="Arrange by">
-                <span className="px-2 text-[12.5px] text-ink-4 max-md:hidden">Arrange by</span>
-                {SORTS.map((s) => (
-                  <button key={s.key} type="button" role="radio" aria-checked={sort === s.key} onClick={() => setSort(s.key)}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        )}
-
-        {view === "shelf" && !T && (
-          <ChipRow label="Filter">
-            <Chip on={!only && !tag} onClick={() => (setOnly(null), setTag(null))}>
-              All <span className="lib-n">{books.length}</span>
-            </Chip>
-            {topics.map(({ topic: t, books: bs }) => (
-              <Chip key={t.key} on={only === t.key} color={t.shades[0]} onClick={() => setOnly(only === t.key ? null : t.key)}>
-                <Glyph k={t.key} size={18} /> {t.name} <span className="lib-n">{bs.length}</span>
-              </Chip>
-            ))}
-            {TAGS.some((t) => books.some(t.test)) && <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 self-center bg-rule-strong" />}
-            {tagChips(books)}
-          </ChipRow>
         )}
 
         <ViewTransition key={screen} enter="lib-enter" exit="lib-exit" default="none">
@@ -377,30 +335,15 @@ export function Library() {
                 }
                 onOpen={(b, el) => setOpen({ id: b.id, origin: { el, kind: "cover" } })}
               />
-            ) : view === "shelf" ? (
+            ) : view === "table" ? (
               <>
-                {hydrated && (
-                  <Shelf
-                    books={sorted}
-                    shown={shown}
-                    sort={sort}
-                    openId={open?.id ?? null}
-                    fresh={fresh}
-                    onOpen={(b, el) => setOpen({ id: b.id, origin: { el, kind: "spine" } })}
-                    onLabel={sort === "topic" ? (k) => go({ view: "topics", topic: k as TopicKey }) : undefined}
-                  />
-                )}
-                {hydrated && shown.size === 0 && books.length > 0 && (
-                  <p className="py-6 text-center text-[14px] text-ink-3">Nothing on the shelves matches{q ? <> &ldquo;{q}&rdquo;</> : ""}.</p>
-                )}
-                {hydrated && own.length < SAMPLES_UNTIL ? (
-                  <Starter count={own.length} signedIn={Boolean(isSignedIn)} onAdd={setAdding} />
-                ) : (
-                  hydrated && <p className="lib-hint">Click a spine to take it down. Arrow keys walk the shelf.</p>
-                )}
+                {hydrated ? (
+                  <LibraryTable key={tableReset} tag={tag} onClearTag={() => setTag(null)} books={matchingBooks} sort={prefs.tableSort} onSort={(tableSort) => setLibraryPrefs({ tableSort })} searching={Boolean(q.trim() || tag)} onClearSearch={() => { setQ(""); setTag(null); }} />
+                ) : <p className="py-10 text-ink-3" role="status">Loading your library…</p>}
+                {hydrated && own.length < SAMPLES_UNTIL && <Starter count={own.length} signedIn={Boolean(isSignedIn)} onAdd={setAdding} />}
               </>
             ) : (
-              <TopicGrid topics={topics} onPick={(t: Topic) => go({ view: "topics", topic: t.key })} />
+              <TopicGrid topics={topics.map((t) => ({ ...t, books: t.books.filter(match) })).filter((t) => t.books.length)} onPick={(t: Topic) => go({ view: "topics", topic: t.key })} />
             )}
           </div>
         </ViewTransition>
@@ -437,9 +380,9 @@ export function Library() {
             closeWave();
             setAdding(null);
             setTag(null);
-            setOnly(null);
-            setSort("recent");
-            go({ view: "shelf" });
+            setQ("");
+            setTableReset((key) => key + 1);
+            go({ view: "table" });
           }}
           onRemove={() => {
             closeWave();
@@ -464,50 +407,6 @@ function bylineOf(x: { author?: string; source?: string; origin?: string }): str
   return x.origin === "paste" ? "Pasted text" : x.origin === "file" ? "A file" : "Saved";
 }
 
-/**
- * Filters on one line, however many topics there are: the row scrolls, fades
- * at an edge with more beyond it, and offers an arrow there to page along.
- */
-function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [edges, setEdges] = useState({ l: false, r: false });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const read = () =>
-      setEdges((e) => {
-        const l = el.scrollLeft > 2;
-        const r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
-        return e.l === l && e.r === r ? e : { l, r };
-      });
-    read();
-    const ro = new ResizeObserver(read);
-    ro.observe(el);
-    const mo = new MutationObserver(read);
-    mo.observe(el, { childList: true, subtree: true, characterData: true });
-    el.addEventListener("scroll", read, { passive: true });
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      el.removeEventListener("scroll", read);
-    };
-  }, []);
-  const page = (dir: 1 | -1) => ref.current?.scrollBy({ left: dir * Math.max(200, ref.current.clientWidth * 0.6), behavior: "smooth" });
-  return (
-    <div className="lib-chip-row" data-l={edges.l || undefined} data-r={edges.r || undefined}>
-      <div ref={ref} className="lib-chips no-scrollbar" role="group" aria-label={label}>
-        {children}
-      </div>
-      <button type="button" className="lib-chip-page is-l" aria-label="Scroll filters left" tabIndex={-1} onClick={() => page(-1)}>
-        <ChevronLeft size={15} />
-      </button>
-      <button type="button" className="lib-chip-page is-r" aria-label="Scroll filters right" tabIndex={-1} onClick={() => page(1)}>
-        <ChevronRight size={15} />
-      </button>
-    </div>
-  );
-}
-
 function Chip({ on, color, onClick, children }: { on: boolean; color?: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className="lib-chip" style={color ? { ["--c" as string]: color } : undefined}>
@@ -520,8 +419,8 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
   return (
     <div className="lib-switch" role="radiogroup" aria-label="View" data-view={view}>
       <span className="lib-switch-pill" aria-hidden />
-      <button type="button" role="radio" aria-checked={view === "shelf"} onClick={() => onChange("shelf")}>
-        <LibraryIcon size={15} /> Shelf
+      <button type="button" role="radio" aria-checked={view === "table"} onClick={() => onChange("table")}>
+        <Table2 size={15} /> Table
       </button>
       <button type="button" role="radio" aria-checked={view === "topics"} onClick={() => onChange("topics")}>
         <LayoutGrid size={15} /> Topics

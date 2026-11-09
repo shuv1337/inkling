@@ -86,6 +86,9 @@ export type Book = {
   author: string;
   year?: number;
   url?: string;
+  source?: string;
+  /** Timestamp of the most recent saved reading position (Progress.at). */
+  lastRead?: number;
   topic: TopicKey;
   minutes: number;
   dek?: string;
@@ -193,43 +196,6 @@ export function lookOf(b: Pick<Book, "id" | "topic" | "minutes">): Look {
 
 export const topicArtSrc = (k: TopicKey) => `/library/topics/${k}.webp`;
 export const iconSrc = (k: TopicKey | TagKey) => `/library/icons/${k}.webp`;
-
-/* ---------- shelving ---------- */
-
-export type Sort = "topic" | "recent" | "color" | "length";
-
-export const SORTS: { key: Sort; label: string }[] = [
-  { key: "topic", label: "Topic" },
-  { key: "recent", label: "Recent" },
-  { key: "color", label: "Colour" },
-  { key: "length", label: "Length" },
-];
-
-const TOPIC_ORDER = Object.fromEntries(TOPICS.map((t, i) => [t.key, i])) as Record<TopicKey, number>;
-
-export function sortBooks(books: Book[], sort: Sort): Book[] {
-  const by = [...books];
-  if (sort === "topic") by.sort((a, b) => TOPIC_ORDER[a.topic] - TOPIC_ORDER[b.topic] || a.added - b.added);
-  if (sort === "recent") by.sort((a, b) => b.added - a.added);
-  if (sort === "color") by.sort((a, b) => lookOf(a).hue - lookOf(b).hue || lookOf(a).h - lookOf(b).h);
-  if (sort === "length") by.sort((a, b) => a.minutes - b.minutes);
-  return by;
-}
-
-/** The label on the shelf under the first book of each run: a topic, a month or a length. */
-export function groupOf(b: Book, sort: Sort): { key: string; label: string; icon?: TopicKey | TagKey } | null {
-  if (sort === "topic") return { key: b.topic, label: TOPIC[b.topic].name, icon: b.topic };
-  if (sort === "recent") {
-    const label = new Date(b.added).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-    return { key: label, label };
-  }
-  if (sort === "length") {
-    if (b.minutes < 10) return { key: "quick", label: "Under 10 min", icon: "quick" };
-    if (b.minutes < 30) return { key: "sitting", label: "One sitting" };
-    return { key: "long", label: b.minutes < 60 ? "An evening" : "A weekend", icon: "long" };
-  }
-  return null;
-}
 
 /* ---------- tags you can filter by ---------- */
 

@@ -66,7 +66,7 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
  */
 export function AddButton({ onClick, compact }: { onClick: () => void; compact?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`lib-add${compact ? " is-compact" : ""}`}>
+    <button type="button" aria-label="Add articles" onClick={onClick} className={`lib-add${compact ? " is-compact" : ""}`}>
       <MarkStack size={compact ? 22 : 26} />
       <span className="min-w-0 text-left">
         <span className="lib-add-title">Add articles</span>

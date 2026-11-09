@@ -1,12 +1,9 @@
 /* ==========================================================================
-   The library: a bookcase, topics drawn by hand, and a book in your hands.
+   The library: a reading list, illustrated topics, and a book in your hands.
    ========================================================================== */
 
 .library {
   --lib-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --wood: #9a7448;
-  --plank-top: color-mix(in oklab, var(--bg-raised) 82%, var(--wood) 18%);
-  --plank-front: color-mix(in oklab, var(--bg-sunk) 66%, var(--wood) 34%);
 }
 
 /* ---------- top bar, title, tools ---------- */
@@ -283,6 +280,7 @@
   }
 }
 
+/* Shared segmented controls: AddPanel tabs and its agent picker. */
 .lib-sort {
   display: inline-flex;
   align-items: center;
@@ -307,6 +305,17 @@
   color: var(--ink);
   background: var(--bg-raised);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+@media (max-width: 639px) {
+  .add-panel header > button { flex-shrink: 0; }
+  .add-panel .lib-sort { min-width: 0; }
+  .add-panel .lib-sort button { height: auto; min-height: 44px; padding: 6px 8px; line-height: 1.2; font-size: 12px; }
+  .add-panel .lib-sort[role="tablist"] { flex: 1; }
+  .add-panel .lib-sort[role="tablist"] button { flex: 1; }
+  .add-panel .lib-sort[role="radiogroup"] button { white-space: nowrap; }
+}
+@media (max-width: 359px) {
+  .add-panel .lib-sort[role="radiogroup"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; border-radius: 20px; }
 }
 
 .lib-chips {
@@ -372,293 +381,6 @@
   margin: 0;
   padding: 0;
   animation: none;
-}
-
-/* The shelf's filters: one line that scrolls, fading where there is more. */
-.lib-chip-row {
-  position: relative;
-  margin: 14px -16px 0;
-  animation: rise 0.7s 0.2s var(--ease-out) both;
-}
-.lib-chip-row .lib-chips {
-  flex-wrap: nowrap;
-  margin: 0;
-  padding: 2px 16px 4px;
-  animation: none;
-}
-@media (min-width: 640px) {
-  .lib-chip-row {
-    margin: 16px 0 0;
-  }
-  .lib-chip-row .lib-chips {
-    padding: 2px 0 4px;
-  }
-}
-.lib-chip-row[data-r] .lib-chips {
-  mask-image: linear-gradient(90deg, #000 calc(100% - 80px), transparent);
-}
-.lib-chip-row[data-l] .lib-chips {
-  mask-image: linear-gradient(90deg, transparent, #000 80px);
-}
-.lib-chip-row[data-l][data-r] .lib-chips {
-  mask-image: linear-gradient(90deg, transparent, #000 80px, #000 calc(100% - 80px), transparent);
-}
-.lib-chip-page {
-  position: absolute;
-  top: calc(50% - 1px);
-  z-index: 1;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--rule);
-  background: var(--bg-raised);
-  color: var(--ink-2);
-  box-shadow: var(--shadow-card);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) scale(0.88);
-  transition: opacity 0.2s ease, transform 0.3s var(--ease-out), color 0.2s ease;
-}
-.lib-chip-page.is-l {
-  left: 0;
-}
-.lib-chip-page.is-r {
-  right: 0;
-}
-.lib-chip-row[data-l]:hover .lib-chip-page.is-l,
-.lib-chip-row[data-r]:hover .lib-chip-page.is-r {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(-50%);
-}
-.lib-chip-page:hover {
-  color: var(--ink);
-}
-@media (hover: none) {
-  .lib-chip-page {
-    display: none;
-  }
-}
-.lib-hint {
-  margin-top: 8px;
-  text-align: center;
-  font-size: 12.5px;
-  color: var(--ink-4);
-  animation: fade 1s 1.4s both;
-}
-
-/* ---------- the bookcase ---------- */
-
-.bookcase {
-  position: relative;
-  margin-top: 34px;
-  transition: height 0.6s var(--ease-out);
-}
-.bookcase > * {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.plank {
-  right: 0;
-  height: 18px;
-  border-radius: 2px 2px 4px 4px;
-  background:
-    linear-gradient(180deg, var(--plank-top) 0 6px, color-mix(in oklab, var(--plank-front), white 14%) 6px 7px, var(--plank-front) 7px 100%),
-    var(--plank-front);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.08), 0 18px 24px -14px rgb(40 30 20 / 0.45);
-  transition: transform 0.6s var(--ease-out);
-  animation: plank-in 0.8s var(--ease-out) both;
-  animation-delay: calc(var(--i) * 90ms);
-}
-/* The shade the books cast on the wall just above the plank. */
-.plank::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  height: 26px;
-  background: linear-gradient(to top, rgb(40 30 20 / 0.09), transparent);
-  pointer-events: none;
-}
-[data-theme="night"] .plank::before,
-[data-theme="ink"] .plank::before {
-  background: linear-gradient(to top, rgb(0 0 0 / 0.3), transparent);
-}
-@keyframes plank-in {
-  from {
-    opacity: 0;
-    clip-path: inset(0 50% 0 50%);
-  }
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-/* A run's name under the plank, centred under its books, as a library shelf
-   is labelled: quiet type, no box. */
-.plank-label {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 9px 0 8px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--ink-3);
-  white-space: nowrap;
-  transition: transform 0.75s var(--lib-ease-in-out), background-color 0.2s ease, color 0.2s ease;
-  animation: fade 0.5s 0.4s both;
-}
-.plank-n {
-  margin-left: 6px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-4);
-}
-button.plank-label:hover {
-  background: var(--bg-sunk);
-  color: var(--ink);
-}
-button.plank-label:hover .plank-n {
-  color: var(--ink-3);
-}
-
-.bookend {
-  color: color-mix(in oklab, var(--ink) 30%, #8f8577);
-  transition: transform 0.75s var(--lib-ease-in-out);
-  pointer-events: none;
-}
-
-.shelf-plant,
-.shelf-pile {
-  pointer-events: none;
-  transition: transform 0.75s var(--lib-ease-in-out), opacity 0.4s var(--ease-out);
-}
-.shelf-plant[data-hidden],
-.shelf-pile[data-hidden] {
-  opacity: 0;
-}
-.plant-leaves {
-  transform-origin: 46px 86px;
-  animation: sway 7s ease-in-out infinite;
-}
-@keyframes sway {
-  50% {
-    transform: rotate(-2deg);
-  }
-}
-.shelf-pile span {
-  display: block;
-  height: 14px;
-  margin-top: 1px;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.14), transparent 40%, rgb(0 0 0 / 0.16)) !important;
-  position: relative;
-}
-.shelf-pile span::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 12px;
-  width: 7px;
-  border-left: 1.5px solid rgb(255 255 255 / 0.4);
-  border-right: 1.5px solid rgb(255 255 255 / 0.4);
-}
-
-/* Each book moves along x and y on different curves, so a book changing
-   shelves swings across rather than cutting a diagonal through the others. */
-.bk-x {
-  transition: transform 0.8s var(--lib-ease-in-out);
-  will-change: transform;
-  pointer-events: none;
-}
-.bk-y {
-  transition: transform 0.8s var(--ease-out);
-}
-.bk-x[data-jump],
-.bk-y[data-jump] {
-  transition: none;
-}
-.bk-in {
-  transition: opacity 0.4s var(--ease-out), transform 0.5s var(--ease-out);
-}
-.bk-in[data-out] {
-  opacity: 0;
-  transform: translateY(-34px) rotate(-2deg);
-  pointer-events: none;
-}
-.is-entering .bk-in:not([data-out]) {
-  animation: book-drop 0.75s var(--ease-out) both;
-  animation-delay: calc(var(--i) * 26ms + 120ms);
-}
-@keyframes book-drop {
-  from {
-    opacity: 0;
-    transform: translateY(-40px);
-  }
-}
-.bk-in[data-fresh] {
-  animation: book-fresh 1.2s var(--ease-out) both;
-}
-.bk-in[data-fresh] .spine {
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--rubric), 3px 0 6px -3px rgb(0 0 0 / 0.35);
-}
-@keyframes book-fresh {
-  0% {
-    opacity: 0;
-    transform: translateY(-160px) rotate(-10deg);
-  }
-  55% {
-    opacity: 1;
-    transform: translateY(0) rotate(0);
-  }
-  72% {
-    transform: translateY(-12px) rotate(1deg);
-  }
-  100% {
-    transform: none;
-  }
-}
-
-.bk {
-  pointer-events: auto;
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 2px;
-  outline: none;
-}
-/* Reached for, a book rises out of the row on a soft spring and its shadow
-   lengthens; let go, it settles back without a bounce. */
-.bk .spine {
-  transition: transform 0.32s var(--ease-out), box-shadow 0.32s var(--ease-out), filter 0.32s ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .bk:hover .spine {
-    transform: translateY(-14px);
-    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12), 5px 10px 16px -8px rgb(0 0 0 / 0.42);
-    filter: brightness(1.04);
-    transition-duration: 0.42s, 0.42s, 0.3s;
-    transition-timing-function: var(--ease-spring), var(--ease-out), ease;
-  }
-}
-.bk:active .spine {
-  transform: translateY(-8px) scale(0.985);
-  transition-duration: 0.12s;
-}
-.bk:focus-visible .spine {
-  transform: translateY(-14px);
-  outline: 2px solid var(--rubric);
-  outline-offset: 3px;
 }
 
 /* ---------- spines ---------- */
@@ -1506,25 +1228,7 @@ button.plank-label:hover .plank-n {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bk-x,
-  .bk-y,
-  .plank-label,
-  .bookend,
-  .shelf-plant,
-  .shelf-pile {
-    transition-duration: 0s !important;
-  }
-  .is-entering .bk-in:not([data-out]),
-  .bk-in[data-fresh],
-  .plant-leaves,
-  .plank {
-    animation: none;
-  }
-  .bk-in[data-out] {
-    transform: none;
-  }
   .face-btn:hover .face-cover,
-  .bk:hover .spine,
   .topic-card:hover {
     transform: none;
   }

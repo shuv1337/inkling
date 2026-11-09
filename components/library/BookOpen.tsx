@@ -7,7 +7,7 @@ import { fmtMinutes, hash, hostOf, lookOf, tagsOf, TOPIC, TOPICS, type Book, typ
 import { Cover, Glyph, Spine } from "./Book";
 import { background } from "@/lib/background";
 
-export type Origin = { el: HTMLElement; kind: "spine" | "cover" };
+export type Origin = { el: HTMLElement; kind: "cover" };
 
 const ASPECT = 1.42;
 const ease = "cubic-bezier(0.22, 1, 0.36, 1)"; // --ease-out
@@ -27,23 +27,12 @@ function measure(book: Book): Geo {
 const T = (x: number, y: number, s: number, z: number, ry: number, rx = 0, rz = 0) =>
   `translate3d(${x}px, ${y}px, 0) scale3d(${s}, ${s}, ${s}) translateZ(${z}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
 
-/** The flight from the shelf (or the display) to your hands, as keyframes. */
+/** The flight from a topic cover to your hands, as keyframes. */
 function flight(g: Geo, o: Origin) {
   const r = o.el.getBoundingClientRect();
   const dx = r.left + r.width / 2 - g.vw / 2;
   const dy = r.top + r.height / 2 - g.vh / 2;
   const end = T(0, 0, 1, -g.D / 2, 0);
-  if (o.kind === "spine") {
-    const k = r.height / g.H;
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-    return [
-      { offset: 0, transform: T(dx, dy, k, -g.W / 2, 90), easing: ease },
-      // Tipped out from the top, toward you, as you would take it off a shelf.
-      { offset: 0.2, transform: T(dx, dy - 22, k, -g.W / 2 + 70, 90, -7), easing: "cubic-bezier(0.45, 0, 0.2, 1)" },
-      { offset: 0.62, transform: T(dx * 0.22, dy * 0.22 - 14, lerp(k, 1, 0.8), lerp(-g.W / 2, -g.D / 2, 0.6) + 40, 34, -5, -1.5), easing: ease },
-      { offset: 1, transform: end },
-    ];
-  }
   const k = r.width / g.W;
   return [
     { offset: 0, transform: T(dx, dy, k, -g.D / 2, 0), easing: ease },
@@ -53,8 +42,7 @@ function flight(g: Geo, o: Origin) {
 }
 
 /**
- * A book, taken off the shelf. It comes out spine first, turns to show its
- * cover as it reaches you, and opens: a bookplate on the left, and on the
+ * A book, opened from its topic cover: a bookplate on the left, and on the
  * right what it is, how far you are, and the way in. From here it can be
  * renamed, moved to another topic, starred, or taken off the shelf. Esc puts it back.
  */
@@ -107,9 +95,9 @@ export function BookOpen({
       setPhase("open");
       return;
     }
-    const fly = b.animate(flight(g, origin), { duration: origin.kind === "spine" ? 840 : 660, fill: "forwards" });
+    const fly = b.animate(flight(g, origin), { duration: 660, fill: "forwards" });
     // The cover starts to open just before the book lands, so the two read as one movement.
-    const delay = origin.kind === "spine" ? 700 : 500;
+    const delay = 500;
     const opts: KeyframeAnimationOptions = { duration: 780, delay, easing: easeInOut, fill: "forwards" };
     c.animate([{ transform: `${coverZ} rotateY(0deg)` }, { transform: `${coverZ} rotateY(-180deg)` }], opts);
     s.animate([{ transform: "translateX(0px)" }, { transform: `translateX(${shift}px)` }], opts);
@@ -137,7 +125,7 @@ export function BookOpen({
       .map((k) => ({ ...k, offset: 1 - k.offset }))
       .reverse()
       .map((k, i, all) => ({ ...k, easing: i < all.length - 1 ? ease : undefined }));
-    const fly = b.animate(back, { duration: origin.kind === "spine" ? 760 : 600, delay: 360, fill: "forwards" });
+    const fly = b.animate(back, { duration: 600, delay: 360, fill: "forwards" });
     await fly.finished.catch(() => {});
     onClose();
   }, [book, coverZ, onClose, origin, reduce, shift]);
