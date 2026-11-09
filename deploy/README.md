@@ -19,7 +19,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/repos/gloss
+WorkingDirectory=%h/repos/inkling
 ExecStart=/usr/bin/npm run start -- -H 127.0.0.1 -p 3100
 Restart=on-failure
 RestartSec=5
@@ -29,6 +29,8 @@ UMask=0077
 [Install]
 WantedBy=default.target
 ```
+
+The live checkout is `~/repos/inkling`; the existing `gloss.service` has a systemd drop-in overriding `WorkingDirectory` to that path. Keep the service name unchanged.
 
 The app loads `.env.local` itself. Configure systemd user lingering if it must survive logout. Then:
 

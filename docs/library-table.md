@@ -28,7 +28,7 @@ Verified with synthetic browser-local data only: dev server on `127.0.0.1:3197`,
 - `npm run lint`: passed, including installed oxlint/type-aware checks. No dependencies added.
 - `npm test`: 82/82 passed, including eight sorting/filtering tests and eight deployment-script tests; repeated successfully after build.
 - `bash -n deploy/swap-build.sh` and `shellcheck deploy/swap-build.sh`: passed. Disposable tests cover unchanged/changed dependencies and recovery from merge, install, build-swap, service-start and health/gate failures.
-- `npm run build`: passed on retry. Next.js 16.4.0 emitted a security-advisory stop; address that dependency advisory separately before shipping. Existing Atkinson Hyperlegible Next fallback-font warning remains.
+- `npm run build`: the original Next.js 16.4.0 build passed only on retry after a security-advisory stop. The security follow-up below replaces that result. Existing Atkinson Hyperlegible Next fallback-font warning remains.
 - Browser regression checks: all six header sorts reverse with Enter/Space; both AddPanel segmented controls have selected styling and fit their labels; agent-banner filter chip is visible/removable; arrivals clear all filters without overwriting sort; samples say Sample, not Added Sample. Previous search/persistence/row-opening checks remain documented in `.verify/`.
 - First row starts at **y=341px** at both 390×844 and 320×844 in Chromium iPhone touch emulation, with single-line status chips and a single-row topic/sort/direction grid. No horizontal overflow at 320, 390, 900, 1024 or 1440px. Long titles wrap. Dates use proportional numerals; status labels and header icons fit at 900px.
 - Impeccable mechanical detector: no findings on changed UI targets.
@@ -44,17 +44,28 @@ Screenshots (git-ignored; synthetic `.example` sources, not real saved articles)
 
 Sizes are CSS viewports; captures are 2× pixel density, taken against the isolated production-mode build with no visual overrides. Logs, local fixture/browser-check scripts and numeric evidence (`browser-fixes.json`) also live in `.verify/`.
 
+### Next.js security follow-up
+
+Upgraded Next.js and its `@next/env` / `@next/swc-*` packages from **16.4.0 → 16.4.1**, the first patched release for [GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr) (typed-array cache RCE), [GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw) (SVG image optimization RCE), and [GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) (Server Actions denial of service). The [release notes](https://github.com/vercel/next.js/releases/tag/v16.4.1) and [tag comparison](https://github.com/vercel/next.js/compare/v16.4.0...v16.4.1) contain security fixes and test changes, with no app-facing breaking change requiring migration here. React / React DOM remain **19.3.0**; all non-Next package versions are unchanged. Next now requires `sharp ^0.35.5`; the lockfile already had **0.35.5**. No ESLint Next config is installed.
+
+- `npx tsc --noEmit` and `npm run lint`: passed.
+- `npm test`: **82/82 passed** after build (before build, 81 passed and the generated-home-page test skipped).
+- Production build: **passed on the first attempt**, no `SecurityFatalError`, using `AUTH_MODE=single NEXT_PUBLIC_SITE_URL=https://inkling.example FEATURE_COVERS=0 DATABASE_URL=postgres://unused:unused@127.0.0.1:1/unused`. Only the existing fallback-font warning remains.
+- `npm audit --omit=dev`: **0 vulnerabilities**.
+- Built-app browser smoke: Next bound to `127.0.0.1:3199`, with a temporary loopback-only proxy on `127.0.0.1:3198` adding the synthetic `smoke@example.invalid` identity. `/library` returned 200, rendered the Table with three built-in sample rows, and clicking Title set `aria-sort="ascending"`. Requests without the identity returned 403. The unreachable database produced expected connection-refused errors; no sync response was mocked. Both temporary processes were stopped afterward.
+- No production environment file, credentials, database, checkout or service was accessed. No deployment performed. Local evidence is in git-ignored `.verify/`.
+
 ## Shipping — operator instructions, not executed
 
-The deployment is `gloss.service` (user systemd), running from `~/repos/gloss` on loopback port 3100. Tailscale Serve provides the private HTTPS origin; Postgres is the existing Docker Compose service. Preserve those names, the `.env.local` file, and the database. See `deploy/README.md` for the deployment/recovery guide. The `origin` URL `shuv1337/gloss` now redirects on GitHub to `shuv1337/inkling`.
+The deployment is `gloss.service` (user systemd), running from `~/repos/inkling` on loopback port 3100 (a systemd drop-in overrides `WorkingDirectory`). Tailscale Serve provides the private HTTPS origin; Postgres is the existing Docker Compose service. Preserve those names, the `.env.local` file, and the database. See `deploy/README.md` for the deployment/recovery guide. The `origin` URL `shuv1337/gloss` now redirects on GitHub to `shuv1337/inkling`.
 
-After review/merge into **selfhost** (not main), resolve the Next.js advisory in a separate upgrade before shipping. Set `SITE_ORIGIN` below to the deployment's actual HTTPS origin; the example is deliberately a placeholder.
+Ship only after the Next.js security follow-up is reviewed and merged into **selfhost** (not main). Set `SITE_ORIGIN` below to the deployment's actual HTTPS origin; the example is deliberately a placeholder.
 
 Prepare the build without touching the live checkout's `.next`:
 
 ```bash
 set -euo pipefail
-live="$HOME/repos/gloss"
+live="$HOME/repos/inkling"
 SITE_ORIGIN="https://inkling.example"
 test "$SITE_ORIGIN" != "https://inkling.example" # Replace the placeholder first.
 test -z "$(git -C "$live" status --porcelain)"
@@ -95,7 +106,7 @@ Use the backup path printed by the swap. These commands restore **both source an
 
 ```bash
 set -euo pipefail
-live="$HOME/repos/gloss"
+live="$HOME/repos/inkling"
 backup="/absolute/path/to/inkling-previous-TIMESTAMP"
 test -f "$backup/revision"
 test -f "$backup/next/BUILD_ID"
