@@ -254,6 +254,8 @@ export function isUnusableRefresh(code: string | undefined): boolean {
 /** A message safe to show. The raw body is not included: it can echo a token. */
 export function tokenEndpointError(status: number, raw: string): ChatgptAuthError {
   const { code } = errorBody(raw);
+  // Status and error code only. The raw body is never logged: it can echo a token.
+  console.error(`[chatgpt-auth] token endpoint refused the request: status=${status} code=${code ?? "none"}`);
   if (isUnusableRefresh(code)) return new UnusableRefresh(code ?? "invalid_grant");
   if (code === "invalid_client") return new ChatgptAuthError("ChatGPT did not accept the saved client. Run npm run chatgpt:login again.", code);
   if (status === 401 || status === 400) return new ChatgptAuthError("ChatGPT rejected the sign-in refresh. Run npm run chatgpt:login again.", code);
@@ -305,7 +307,10 @@ export async function refreshWithLock(deps: RefreshDeps): Promise<string> {
       await deps.save(next);
       return next.accessToken;
     } catch (e) {
-      if (e instanceof UnusableRefresh) await deps.clear();
+      if (e instanceof UnusableRefresh) {
+        console.error(`[chatgpt-auth] refresh token unusable (code=${e.code ?? "none"}); clearing stored tokens, last refreshed ${session.refreshedAt == null ? "never" : new Date(session.refreshedAt).toISOString()}`);
+        await deps.clear();
+      }
       throw e;
     }
   });
